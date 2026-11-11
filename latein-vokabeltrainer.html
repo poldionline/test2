@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Latein-Vokabeltrainer</title>
+<style>
+  :root{
+    --bg:#f6f4ef; --card:#ffffff; --ink:#1e1d1a; --muted:#6c685f; --line:#e2ded3;
+    --accent:#8c2f39; --accent-ink:#fff; --ok:#2f7d4f; --ok-bg:#e4f3ea; --bad:#b3261e; --bad-bg:#fbe6e4; --warn:#8a5a00; --warn-bg:#fdf0c9;
+    --radius:14px; --shadow:0 1px 2px rgba(0,0,0,.05),0 6px 20px rgba(0,0,0,.05);
+  }
+  @media (prefers-color-scheme:dark){
+    :root{ --bg:#17161a; --card:#222126; --ink:#f0eee8; --muted:#a09c93; --line:#37353c;
+      --accent:#d56b76; --accent-ink:#1a1214; --ok:#6fcf97; --ok-bg:#1d3326; --bad:#ff8a80; --bad-bg:#3b1f1e; --warn:#f2c14e; --warn-bg:#3a2f10;
+      --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 20px rgba(0,0,0,.3);}
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
+  .wrap{max-width:860px;margin:0 auto;padding:20px 16px 60px}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+  h1{font-family:Georgia,"Times New Roman",serif;font-size:1.7rem;margin:0;letter-spacing:.01em}
+  h1 span{color:var(--accent)}
+  h2{font-size:1.05rem;margin:0 0 12px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;margin-bottom:16px}
+  .muted{color:var(--muted);font-size:.9rem}
+  button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:9px 16px;border-radius:10px;cursor:pointer;transition:transform .08s,background .15s,filter .15s}
+  button:hover{background:color-mix(in srgb,var(--card) 88%,var(--accent))}
+  button:active{transform:scale(.95)}
+  button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+  button.primary:hover{filter:brightness(1.1);background:var(--accent)}
+  button.danger{color:var(--bad)}
+  button.icon{padding:6px 11px;font-size:1.1rem;line-height:1}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .headright{display:flex;align-items:center;gap:12px}
+  .status{margin-top:8px;font-size:.92rem;min-height:1.3em}
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:4px 6px}
+  td{padding:3px 4px}
+  td input{width:100%;font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+  td input:focus,.answer:focus,textarea:focus,select:focus{outline:2px solid var(--accent);outline-offset:0}
+  td.n{width:34px;color:var(--muted);text-align:right;font-size:.85rem}
+  td.x{width:42px}
+  td.x button{padding:6px 10px;line-height:1}
+  .tablewrap{max-height:52vh;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:6px}
+  textarea,select{font:inherit;width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+  textarea{min-height:110px;resize:vertical}
+  label.opt{display:flex;flex-direction:column;gap:4px;font-size:.85rem;color:var(--muted);flex:1;min-width:170px}
+  label.check{display:flex;align-items:center;gap:8px;font-size:.92rem;margin-top:12px;cursor:pointer}
+  label.check input{width:18px;height:18px;accent-color:var(--accent)}
+  details summary{cursor:pointer;font-weight:600}
+  details[open] summary{margin-bottom:10px}
+
+  /* ---------- Quiz ---------- */
+  .quiz-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:10px;flex-wrap:wrap}
+  .pill{font-size:.85rem;color:var(--muted)}
+  .streak{font-weight:700;color:var(--accent);min-width:60px;text-align:right}
+  .progress{height:8px;background:var(--line);border-radius:99px;overflow:hidden;margin:0 0 14px}
+  .progress>div{height:100%;width:0;background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 55%,#e7b04a));transition:width .45s cubic-bezier(.3,.9,.3,1)}
+  .qcard{text-align:center;padding:34px 20px 28px}
+  .dir{font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+  .prompt{font-family:Georgia,serif;font-size:clamp(1.7rem,6vw,2.6rem);margin:6px 0 22px;word-break:break-word}
+  .answer{width:100%;max-width:480px;font:inherit;font-size:1.15rem;padding:12px 14px;border:2px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);text-align:center;transition:border-color .2s}
+  .answer:focus{border-color:var(--accent);outline:none}
+  .hint{margin-top:12px;font-size:.92rem;color:var(--muted);min-height:2.6em}
+  .dots{display:flex;gap:7px;justify-content:center;margin-bottom:5px}
+  .dots i{width:12px;height:12px;border-radius:50%;border:2px solid var(--line);transition:all .25s}
+  .dots i.on{background:var(--accent);border-color:var(--accent);transform:scale(1.15)}
+  .dots i.over{background:var(--bad);border-color:var(--bad)}
+  .feedback{margin:18px auto 0;max-width:560px;padding:14px 16px;border-radius:12px;text-align:left;display:none}
+  .feedback.ok{display:block;background:var(--ok-bg);color:var(--ok);animation:fbIn .35s ease both}
+  .feedback.bad{display:block;background:var(--bad-bg);color:var(--bad);animation:fbIn .35s ease both}
+  .feedback.neutral{display:block;background:var(--bg);color:var(--ink);animation:fbIn .35s ease both}
+  .feedback.warn{display:block;background:var(--warn-bg);color:var(--warn);animation:fbIn .35s ease both}
+  .feedback.warn .fbtitle{color:var(--warn)}
+  .feedback b{color:var(--ink)}
+  .fbtitle{font-weight:700;font-size:1.05rem;margin-bottom:6px}
+  .fbline{font-size:.92rem;margin-top:6px;color:var(--ink)}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 2px}
+  .chip{padding:4px 12px;border-radius:99px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:.95rem;animation:pop .4s cubic-bezier(.3,1.6,.5,1) both}
+  .chip.ok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok)}
+  .chip.bad{background:var(--bad-bg);color:var(--bad);border-color:var(--bad);text-decoration:line-through}
+  .chip.dup{background:var(--bad-bg);color:var(--bad);border-color:var(--bad)}
+  .chip.miss{border:1px dashed var(--warn);color:var(--warn);background:var(--warn-bg)}
+  .warnrow{border-left:4px solid var(--warn);padding-left:10px}
+  .drop{border:2px dashed var(--line);border-radius:var(--radius);padding:24px 16px;text-align:center;cursor:pointer;transition:.15s}
+  .drop:hover,.drop.over{border-color:var(--accent);background:color-mix(in srgb,var(--card) 94%,var(--accent))}
+  .drop strong{display:block;font-size:1.05rem;margin-bottom:4px}
+  .thumbs{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+  .thumb{position:relative;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--bg)}
+  .thumb img{display:block;height:120px;cursor:zoom-in}
+  .thumb .tb{position:absolute;top:4px;right:4px;display:flex;gap:4px}
+  .thumb .tb button{padding:2px 9px;font-size:1rem;line-height:1.3}
+  .sprog{height:8px;background:var(--line);border-radius:99px;overflow:hidden;margin-top:12px}
+  .sprog>div{height:100%;width:0;background:var(--accent);transition:width .35s}
+  .status.err{color:var(--bad)} .status.ok{color:var(--ok)}
+  tr.unsure td input[data-f]{border-color:var(--warn);background:var(--warn-bg)}
+  .tag{display:inline-block;font-size:.75rem;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+  .tag.warn{background:var(--warn-bg);color:var(--warn);border-color:var(--warn)}
+  td.c{width:34px;text-align:center}
+  td.c input{width:20px;height:20px;padding:0;accent-color:var(--accent)}
+  #lightbox{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:60;overflow:auto;padding:16px}
+  #lightbox img{display:block;width:min(100%,1600px);margin:0 auto;border-radius:6px}
+  #lightbox button{position:fixed;top:14px;right:14px;z-index:61}
+  .reveal{font-size:1.4rem;margin:8px 0 6px;font-family:Georgia,serif}
+  .actions{display:flex;gap:10px;justify-content:center;margin-top:18px;flex-wrap:wrap}
+  .score{font-size:3.2rem;font-family:Georgia,serif;margin:6px 0}
+  .badlist{text-align:left;max-width:560px;margin:16px auto 0}
+  .badlist div{padding:6px 0;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:12px}
+  .hidden{display:none!important}
+  #confetti{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:50}
+
+  /* ---------- Animationen ---------- */
+  @keyframes cardIn{from{opacity:0;transform:translateY(18px) scale(.97)}to{opacity:1;transform:none}}
+  @keyframes fbIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+  @keyframes pop{0%{transform:scale(.3);opacity:0}100%{transform:scale(1);opacity:1}}
+  @keyframes shake{10%,90%{transform:translateX(-2px)}20%,80%{transform:translateX(5px)}30%,50%,70%{transform:translateX(-9px)}40%,60%{transform:translateX(9px)}}
+  @keyframes glowOk{0%{box-shadow:0 0 0 0 rgba(47,125,79,.6)}100%{box-shadow:0 0 0 30px rgba(47,125,79,0)}}
+  @keyframes glowBad{0%{box-shadow:0 0 0 0 rgba(179,38,30,.5)}100%{box-shadow:0 0 0 30px rgba(179,38,30,0)}}
+  @keyframes bump{0%{transform:scale(1)}40%{transform:scale(1.5)}100%{transform:scale(1)}}
+  @keyframes bounce{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.15);opacity:1}100%{transform:scale(1)}}
+  section.enter{animation:cardIn .38s ease both}
+  .anim-in{animation:cardIn .35s ease both}
+  .anim-shake{animation:shake .55s both, glowBad .75s ease-out}
+  .anim-ok{animation:glowOk .75s ease-out}
+  .anim-bad{animation:glowBad .75s ease-out}
+  @keyframes glowWarn{0%{box-shadow:0 0 0 0 rgba(224,170,40,.65)}100%{box-shadow:0 0 0 30px rgba(224,170,40,0)}}
+  .anim-warn{animation:glowWarn .75s ease-out}
+  .anim-bump{animation:bump .4s ease}
+  .anim-bounce{animation:bounce .6s cubic-bezier(.3,1.5,.5,1) both}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+  @media (max-width:520px){ .wrap{padding:14px 10px 50px} .card{padding:14px} }
+</style>
+</head>
+<body>
+<canvas id="confetti" class="hidden"></canvas>
+<div id="lightbox" class="hidden"><button id="lbclose">✕ Schließen</button><img id="lbimg" alt="Foto"></div>
+<div class="wrap">
+  <header>
+    <h1>Latein<span>·</span>Vokabeltrainer</h1>
+    <div class="headright">
+      <div class="muted" id="countInfo"></div>
+      <button class="icon" id="muteBtn" title="Ton an/aus" aria-label="Ton an/aus">🔊</button>
+    </div>
+  </header>
+
+  <!-- ================= SETUP ================= -->
+  <section id="setup">
+    <div class="card" id="scanCard">
+      <h2>📷 Foto scannen <span class="muted" style="font-weight:400">(optional)</span></h2>
+      <p class="muted" style="margin-top:-6px">Lade ein Foto einer Vokabelseite hoch. Erkannt werden nur die gedruckten Vokabeln – Handschrift, Häkchen, Überschriften und Beispielsätze werden ignoriert. Danach prüfst du die Liste.</p>
+      <div class="drop" id="drop" tabindex="0">
+        <strong>📷 Foto auswählen oder aufnehmen</strong>
+        <span class="muted">Mehrere Seiten sind möglich. Die ganze Seite sollte im Bild sein und die Schrift scharf.</span>
+      </div>
+      <input type="file" id="file" accept="image/*" multiple hidden>
+      <div class="thumbs" id="thumbs"></div>
+      <label class="check"><input type="checkbox" id="sverify" checked> Zweite Prüfung (genauer, dauert etwas länger)</label>
+      <div class="row" style="margin-top:12px">
+        <button class="primary" id="scanBtn" disabled>🔍 Vokabeln erkennen</button>
+      </div>
+      <div class="sprog hidden" id="sprogWrap"><div id="sprog"></div></div>
+      <div class="status muted" id="scanStatus"></div>
+
+      <details id="scanSet" style="margin-top:14px">
+        <summary>⚙ KI-Zugang einrichten</summary>
+        <p class="muted">Für eine zuverlässige Erkennung (auch bei Handschrift, Schatten und schiefen Fotos) nutzt der Scanner ein Bildmodell. Dafür brauchst du einen eigenen Schlüssel – das Foto geht direkt an den gewählten Anbieter.</p>
+        <div class="row">
+          <label class="opt">Anbieter
+            <select id="sprov">
+              <option value="gemini">Google Gemini (kostenlose Stufe möglich)</option>
+              <option value="claude">Anthropic Claude (API-Guthaben nötig)</option>
+            </select>
+          </label>
+          <label class="opt">Modell
+            <input id="smodel" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" style="font:inherit;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)">
+          </label>
+        </div>
+        <label class="opt" style="margin-top:10px">API-Schlüssel
+          <input id="skey" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Schlüssel hier einfügen" style="font:inherit;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)">
+        </label>
+        <p class="muted" id="shint"></p>
+        <div class="row">
+          <button id="ssave">Speichern</button>
+          <button id="stest">Verbindung testen</button>
+          <button id="sdel" class="danger">Schlüssel löschen</button>
+        </div>
+        <div class="status muted" id="sstat"></div>
+        <p class="muted">Der Schlüssel wird nur in diesem Browser gespeichert. Bei der kostenlosen Gemini-Stufe kann Google die gesendeten Inhalte zur Verbesserung seiner Produkte nutzen – scanne also nur Buchseiten.</p>
+      </details>
+
+      <div id="scanRes" class="hidden">
+        <h2 style="margin-top:22px">Erkannte Vokabeln</h2>
+        <div class="status" id="srsum"></div>
+        <p class="muted">Gelb = der Eintrag war schwer lesbar – bitte mit dem Foto vergleichen (Foto antippen = vergrößern). Alles lässt sich direkt ändern.</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th></th><th></th><th>Latein</th><th>Deutsch</th><th></th></tr></thead>
+            <tbody id="srbody"></tbody>
+          </table>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <button class="primary" id="sapply">✓ Übernehmen</button>
+          <button id="sall">Alle / keine</button>
+          <button id="sdiscard">Verwerfen</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>1 · Vokabeln eingeben</h2>
+      <p class="muted" style="margin-top:-6px">Füge unten eine Liste ein oder tippe die Vokabeln direkt in die Tabelle. Alles lässt sich jederzeit bearbeiten.</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th></th><th>Latein</th><th>Deutsch</th><th></th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button id="addRow">＋ Zeile</button>
+        <button id="clearAll" class="danger">Alle löschen</button>
+        <span style="flex:1"></span>
+        <button id="exportBtn">Liste speichern (.txt)</button>
+      </div>
+
+      <details open style="margin-top:14px">
+        <summary>Vokabeln als Text einfügen</summary>
+        <p class="muted">Eine Vokabel pro Zeile: <code>latein = deutsch</code> (auch Tab oder <code> - </code> als Trenner). Mehrere deutsche Bedeutungen mit Komma oder Semikolon trennen. Eine falsche Bedeutung macht die Antwort falsch. Fehlen nur Bedeutungen, zählt sie als richtig und wird gelb vermerkt.</p>
+        <textarea id="paste" style="min-height:160px" placeholder="amicus, -i m. = Freund&#10;fanum, -i = Heiligtum, Tempel"></textarea>
+        <div class="row" style="margin-top:8px"><button id="pasteBtn">Hinzufügen</button></div>
+        <div class="status muted" id="status"></div>
+      </details>
+    </div>
+
+    <div class="card">
+      <h2>2 · Abfrage starten</h2>
+      <div class="row">
+        <label class="opt">Richtung
+          <select id="dir">
+            <option value="la-de">Latein → Deutsch</option>
+            <option value="de-la">Deutsch → Latein</option>
+            <option value="mix">Gemischt</option>
+          </select>
+        </label>
+        <label class="opt">Art der Abfrage
+          <select id="mode">
+            <option value="type">Eintippen (streng prüfen)</option>
+            <option value="flip">Karteikarten (selbst bewerten)</option>
+          </select>
+        </label>
+        <label class="opt">Anzahl
+          <select id="amount"></select>
+        </label>
+      </div>
+      <label class="check"><input type="checkbox" id="typo"> Kleine Tippfehler tolerieren (ein Buchstabe bei längeren Wörtern)</label>
+      <div class="row" style="margin-top:14px">
+        <button class="primary" id="start" style="padding:12px 26px;font-size:1.05rem">▶ Abfrage starten</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= QUIZ ================= -->
+  <section id="quiz" class="hidden">
+    <div class="quiz-top">
+      <button id="quitBtn">← Beenden</button>
+      <div class="pill" id="qInfo"></div>
+      <div class="streak" id="streak"></div>
+    </div>
+    <div class="progress"><div id="qProg"></div></div>
+
+    <div class="card qcard" id="qcard">
+      <div class="dir" id="qDir"></div>
+      <div class="prompt" id="qPrompt"></div>
+
+      <div id="typeArea">
+        <input class="answer" id="answer" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Antwort eingeben …">
+        <div class="hint" id="hint"></div>
+        <div class="actions"><button class="primary" id="checkBtn">Prüfen ↵</button><button id="skipBtn">Weiß ich nicht</button></div>
+      </div>
+
+      <div id="flipArea" class="hidden">
+        <div class="actions"><button class="primary" id="showBtn">Lösung zeigen</button></div>
+      </div>
+
+      <div class="feedback" id="feedback"></div>
+
+      <div class="actions hidden" id="rateArea">
+        <button id="wrongBtn" class="danger">✗ Nicht gewusst</button>
+        <button id="rightBtn" class="primary">✓ Gewusst</button>
+      </div>
+      <div class="actions hidden" id="nextArea">
+        <button id="overrideBtn" class="hidden">✓ Trotzdem gelten</button>
+        <button class="primary" id="nextBtn">Weiter ↵</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= RESULT ================= -->
+  <section id="result" class="hidden">
+    <div class="card qcard">
+      <div class="dir">Ergebnis</div>
+      <div class="score" id="rScore"></div>
+      <div class="muted" id="rText"></div>
+      <div class="badlist" id="rBad"></div>
+      <div class="badlist" id="rWarn"></div>
+      <div class="actions" style="margin-top:24px">
+        <button class="primary" id="retryBtn">Nur die falschen nochmal</button>
+        <button id="againBtn">Neue Runde (alle)</button>
+        <button id="backBtn">Zur Vokabelliste</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+'use strict';
+/* ====================== Hilfsfunktionen ====================== */
+const $ = s => document.querySelector(s);
+const uid = () => Math.random().toString(36).slice(2, 10);
+function shuffle(a){ a=[...a]; for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function setStatus(t){ $('#status').textContent = t; }
+const reduced = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+function anim(el, cls){ [...el.classList].forEach(c=>{ if(c===cls || c.startsWith('anim-')) el.classList.remove(c); }); void el.offsetWidth; el.classList.add(cls); }
+
+/* ====================== Sound (WebAudio, keine Dateien nötig) ====================== */
+let actx = null, muted = false;
+try { muted = localStorage.getItem('latein-muted') === '1'; } catch(e){}
+function ac(){
+  if(!actx){ try{ actx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
+  if(actx && actx.state==='suspended') actx.resume();
+  return actx;
+}
+function tone(freq, start, dur, type='sine', vol=.16, slideTo){
+  if(muted) return; const c = ac(); if(!c) return;
+  const t = c.currentTime + start, o = c.createOscillator(), g = c.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t);
+  if(slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t+dur);
+  g.gain.setValueAtTime(.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t+.012);
+  g.gain.exponentialRampToValueAtTime(.0001, t+dur);
+  o.connect(g).connect(c.destination); o.start(t); o.stop(t+dur+.03);
+}
+const SFX = {
+  ok(){ tone(659,0,.14,'triangle'); tone(880,.09,.14,'triangle'); tone(1319,.18,.34,'triangle',.15); },
+  bad(){ tone(233,0,.3,'sawtooth',.11,116); tone(175,.14,.38,'square',.06,87); },
+  next(){ tone(480,0,.07,'sine',.07,760); },
+  start(){ [392,523,659,784].forEach((f,i)=>tone(f,i*.07,.2,'triangle',.13)); },
+  flip(){ tone(320,0,.09,'sine',.08,640); },
+  warn(){ tone(523,0,.14,'triangle',.13); tone(466,.13,.26,'triangle',.11); },
+  streak(n){ const b = 660 + Math.min(n,15)*22; [0,.08,.16].forEach((d,i)=>tone(b*(1+i*.25),d,.16,'sine',.09)); },
+  fin(pct){
+    if(pct>=80){ [523,659,784,1047,784,1047,1319].forEach((f,i)=>tone(f,i*.11,.26,'triangle',.14)); }
+    else if(pct>=50){ [440,523,659].forEach((f,i)=>tone(f,i*.14,.28,'triangle',.13)); }
+    else { [392,330,262].forEach((f,i)=>tone(f,i*.18,.34,'sine',.12)); }
+  }
+};
+function updateMute(){ $('#muteBtn').textContent = muted ? '🔇' : '🔊'; }
+$('#muteBtn').onclick = ()=>{ muted = !muted; try{ localStorage.setItem('latein-muted', muted?'1':'0'); }catch(e){} updateMute(); if(!muted){ ac(); SFX.next(); } };
+updateMute();
+
+/* ====================== Konfetti ====================== */
+function confetti(){
+  if(reduced) return;
+  const cv = $('#confetti'), ctx = cv.getContext('2d');
+  cv.width = innerWidth; cv.height = innerHeight; cv.classList.remove('hidden');
+  const cols = ['#8c2f39','#d9a441','#2f7d4f','#3b6fb6','#d56b76','#f0eee8'];
+  const P = Array.from({length:150},()=>({
+    x:innerWidth/2+(Math.random()-.5)*240, y:innerHeight*.38,
+    vx:(Math.random()-.5)*16, vy:-Math.random()*15-4, g:.36+Math.random()*.2,
+    s:6+Math.random()*7, r:Math.random()*6, vr:(Math.random()-.5)*.4, c:cols[(Math.random()*cols.length)|0]
+  }));
+  const t0 = performance.now();
+  (function frame(t){
+    const el = t - t0;
+    ctx.clearRect(0,0,cv.width,cv.height);
+    for(const p of P){
+      p.vy += p.g; p.x += p.vx; p.y += p.vy; p.vx *= .99; p.r += p.vr;
+      ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.r);
+      ctx.fillStyle = p.c; ctx.globalAlpha = Math.max(0, 1-el/3200);
+      ctx.fillRect(-p.s/2,-p.s/2,p.s,p.s*.6); ctx.restore();
+    }
+    if(el < 3200) requestAnimationFrame(frame);
+    else { ctx.clearRect(0,0,cv.width,cv.height); cv.classList.add('hidden'); }
+  })(t0);
+}
+
+/* ====================== Zustand ====================== */
+const STORE = 'latein-vokabeltrainer-v1';
+let vocab = [];
+try { vocab = JSON.parse(localStorage.getItem(STORE) || '[]'); } catch(e){ vocab = []; }
+const save = () => { try{ localStorage.setItem(STORE, JSON.stringify(vocab)); }catch(e){} updateCount(); };
+
+/* ====================== Vokabelliste (UI) ====================== */
+function updateCount(){
+  const n = vocab.filter(v=>v.la.trim()&&v.de.trim()).length;
+  $('#countInfo').textContent = n ? `${n} Vokabeln gespeichert` : '';
+  const sel = $('#amount'), old = sel.value;
+  const opts = [['all','Alle ('+n+')']];
+  [10,20,30,50].forEach(k=>{ if(n>k) opts.push([k,k+' zufällige']); });
+  sel.innerHTML = opts.map(o=>`<option value="${o[0]}">${o[1]}</option>`).join('');
+  if([...sel.options].some(o=>o.value===old)) sel.value = old;
+}
+function renderTable(focusLast){
+  const tb = $('#tbody');
+  tb.innerHTML = vocab.map((v,i)=>`
+    <tr data-id="${v.id}">
+      <td class="n">${i+1}</td>
+      <td><input data-f="la" value="${esc(v.la)}" placeholder="Latein"></td>
+      <td><input data-f="de" value="${esc(v.de)}" placeholder="Deutsch"></td>
+      <td class="x"><button title="Zeile löschen" data-del>✕</button></td>
+    </tr>`).join('') || `<tr><td colspan="4" class="muted" style="padding:16px;text-align:center">Noch keine Vokabeln. Füge unten eine Liste ein oder tippe sie hier ein.</td></tr>`;
+  updateCount();
+  if(focusLast){ const ins = tb.querySelectorAll('tr:last-child input'); if(ins[0]) ins[0].focus(); }
+}
+$('#tbody').addEventListener('input', e=>{
+  const tr = e.target.closest('tr'); if(!tr) return;
+  const v = vocab.find(x=>x.id===tr.dataset.id); if(!v) return;
+  v[e.target.dataset.f] = e.target.value; save();
+});
+$('#tbody').addEventListener('click', e=>{
+  if(!e.target.closest('[data-del]')) return;
+  const id = e.target.closest('tr').dataset.id;
+  vocab = vocab.filter(x=>x.id!==id); save(); renderTable();
+});
+$('#addRow').onclick = ()=>{ vocab.push({id:uid(),la:'',de:''}); save(); renderTable(true); };
+$('#clearAll').onclick = ()=>{ if(vocab.length && confirm('Wirklich alle Vokabeln löschen?')){ vocab=[]; save(); renderTable(); } };
+$('#exportBtn').onclick = ()=>{
+  const txt = vocab.filter(v=>v.la||v.de).map(v=>`${v.la} = ${v.de}`).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([txt],{type:'text/plain;charset=utf-8'}));
+  a.download = 'latein-vokabeln.txt'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+};
+$('#pasteBtn').onclick = ()=>{
+  let added = 0;
+  for(const raw of $('#paste').value.split(/\r?\n/)){
+    const line = raw.trim(); if(!line) continue;
+    let la, de, m;
+    if((m = line.match(/^(.*?)(?:\t|\s*=\s*)(.+)$/))){ la=m[1]; de=m[2]; }
+    else if((m = line.match(/^(.*?)\s[–—-]\s(.+)$/))){ la=m[1]; de=m[2]; }
+    else if((m = line.match(/^(.*?);\s*(.+)$/))){ la=m[1]; de=m[2]; }
+    if(la && de && la.trim() && de.trim()){ vocab.push({id:uid(), la:la.trim(), de:de.trim()}); added++; }
+  }
+  if(added){ $('#paste').value=''; save(); renderTable(); setStatus(`✓ ${added} Vokabeln hinzugefügt.`); }
+  else alert('Keine passenden Zeilen gefunden. Format: latein = deutsch');
+};
+
+/* ====================== Foto-Scanner (Bildmodell) ====================== */
+const SCAN_KEY = 'latein-scan-v1';
+const SCAN_DEFAULT = {gemini:'gemini-3.8-flash', claude:'claude-sonnet-5-5'};
+let scanCfg = {provider:'gemini', gemini:{key:'', model:SCAN_DEFAULT.gemini}, claude:{key:'', model:SCAN_DEFAULT.claude}};
+try{
+  const c = JSON.parse(localStorage.getItem(SCAN_KEY) || 'null');
+  if(c) scanCfg = {provider:c.provider||'gemini', gemini:{...scanCfg.gemini,...c.gemini}, claude:{...scanCfg.claude,...c.claude}};
+}catch(e){}
+const scanSave = ()=>{ try{ localStorage.setItem(SCAN_KEY, JSON.stringify(scanCfg)); }catch(e){} };
+const sdef = ()=>scanCfg[scanCfg.provider];
+
+/* ---- Prompts ---- */
+const SCAN_INTRO = `You are an expert at digitising vocabulary lists from Latin school textbooks. The image is a photo of a textbook page (it may be tilted, dim, shadowed or slightly curved).
+
+TASK: Transcribe the vocabulary entries of the page - Latin headword on the left, German meaning(s) on the right - as accurately as humanly possible.`;
+const SCAN_RULES = `RULES
+1. Only vocabulary entries: a Latin word or phrase together with its German meaning(s). IGNORE headings, page numbers, section titles (e.g. "Spezialwortschatz", "Anhang", "Syntax-Profil"), boxes, grammar or syntax sections, example sentences and their translations, footnotes.
+2. IGNORE everything that is not printed: handwriting, pencil or pen notes, check marks, crosses, ticks, underlines, highlighting, arrows, stains. Never include a handwritten word, even if it looks like a vocabulary entry or is placed below the list.
+3. Latin column: copy exactly as printed, including endings and grammatical information (e.g. "amicus, -i m.", "aeneus, -a, -um", "vas, vasis (Pl. vasa, vasorum)") and bracketed hints such as "(aes)" or "(tangere)" (they belong to the Latin column, even if printed in italics - copy only the text, not the style). Keep macrons if they are printed. Remove only a trailing colon that merely separates the two columns. Do not correct, complete or normalise words.
+4. German column: copy exactly as printed, including the commas and semicolons that separate several meanings. Join text that wraps over several lines. If a word is hyphenated at a line break (e.g. "Men-" at the end of one line and "schen" at the start of the next), join it into one word ("Menschen"). Keep umlauts and the sharp s. Hyphens that belong to the word itself (such as in "-a, -um") always stay; only line-break hyphens are removed.
+5. If a Latin entry wraps over two lines, join it into one entry. A line in the German column that continues the meaning of the entry above belongs to that entry.
+6. Keep the order of the page, top to bottom (and left to right if there are several columns). No omissions, no duplicates, no inventions. Never translate or add anything yourself.
+7. Set "unsure" to true ONLY for an entry in which you cannot read a character or word with certainty; otherwise false. Faint, dim or shadowed print that you can still read with certainty is NOT unsure.
+Return the result in the required JSON structure: {"vocab":[{"la":"...","de":"...","unsure":false}, ...]}. Output nothing else.`;
+const PROMPT_FIRST = SCAN_INTRO + '\n\n' + SCAN_RULES;
+function promptVerify(list){
+  return SCAN_INTRO + '\n\n' + SCAN_RULES + `
+
+SECOND PASS - QUALITY CONTROL
+Below is a first transcription of this page. Check it line by line against the photo, character by character: Latin endings and brackets, every German word, missing entries, extra entries (handwriting, sentences or headings that slipped in), wrongly merged or split entries, wrong line-break joins. Fix every mistake you find. Return the COMPLETE corrected list in the same JSON structure (correct entries unchanged and in the same order).
+
+FIRST TRANSCRIPTION:
+` + JSON.stringify({vocab: list.map(x=>({la:x.la, de:x.de, unsure:!!x.unsure}))});
+}
+const VOCAB_SCHEMA_G = {type:'OBJECT', properties:{vocab:{type:'ARRAY', items:{type:'OBJECT', properties:{la:{type:'STRING'}, de:{type:'STRING'}, unsure:{type:'BOOLEAN'}}, required:['la','de']}}}, required:['vocab']};
+const VOCAB_SCHEMA_C = {type:'object', properties:{vocab:{type:'array', items:{type:'object', properties:{la:{type:'string'}, de:{type:'string'}, unsure:{type:'boolean'}}, required:['la','de']}}}, required:['vocab']};
+
+/* ---- Antwort lesen ---- */
+function parseVocabJSON(text){
+  let t = String(text||'').trim().replace(/^```(?:json)?\s*/i,'').replace(/```\s*$/,'').trim();
+  let obj;
+  try{ obj = JSON.parse(t); }
+  catch(e){
+    const a = t.indexOf('{'), b = t.lastIndexOf('}');
+    const a2 = t.indexOf('['), b2 = t.lastIndexOf(']');
+    if(a>=0 && b>a) obj = JSON.parse(t.slice(a,b+1));
+    else if(a2>=0 && b2>a2) obj = JSON.parse(t.slice(a2,b2+1));
+    else throw new Error('Die Antwort des Modells war kein gültiges JSON.');
+  }
+  const arr = Array.isArray(obj) ? obj : (obj.vocab || obj.entries || obj.items || []);
+  return arr.map(x=>{
+    const la = String(x.la ?? x.latin ?? '').replace(/\s+/g,' ').replace(/\s*:\s*$/,'').trim();
+    const de = String(x.de ?? x.german ?? '').replace(/\s+/g,' ').trim();
+    return {la, de, unsure: !!x.unsure || !de};
+  }).filter(x=>x.la);
+}
+const entryKey = x => (x.la+'|'+x.de).toLowerCase().replace(/\s+/g,' ').trim();
+const diffCount = (a,b)=>{ const s = new Set(a.map(entryKey)); return b.filter(x=>!s.has(entryKey(x))).length; };
+
+/* ---- Netzwerk ---- */
+class ApiError extends Error{ constructor(msg,status){ super(msg); this.status = status||0; } }
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+async function httpJSON(url, init){
+  const waits = window.__RETRY_MS || [4000, 12000];
+  for(let attempt=0;;attempt++){
+    let res;
+    try{ res = await fetch(url, init); }
+    catch(e){ throw new ApiError('Keine Verbindung zum Anbieter (Internet? Vom Browser oder Netzwerk blockiert?).', 0); }
+    let j = null; try{ j = await res.json(); }catch(e){}
+    if(res.ok) return j;
+    const msg = (j && ((j.error && j.error.message) || j.message)) || res.statusText || ('Fehler '+res.status);
+    if([429,500,503,529].includes(res.status) && attempt < waits.length){
+      setScanStatus(`Der Anbieter ist gerade ausgelastet – neuer Versuch in ${Math.max(1,Math.round(waits[attempt]/1000))} s …`);
+      await sleep(waits[attempt]); continue;
+    }
+    throw new ApiError(msg, res.status);
+  }
+}
+let modelFixTried = false;
+async function withModelFix(fn){
+  try{ return await fn(); }
+  catch(e){
+    if(e.status===404 && !modelFixTried){
+      modelFixTried = true;
+      let m = null; try{ m = await discoverModel(); }catch(_){}
+      const cfg = sdef();
+      if(m && m!==cfg.model){
+        cfg.model = m; scanSave(); fillScanFields();
+        setScanStatus(`Modell nicht gefunden – automatisch auf „${m}“ umgestellt.`);
+        return await fn();
+      }
+    }
+    throw e;
+  }
+}
+
+/* ---- Gemini ---- */
+function pickGeminiModel(models){
+  const ver = n => parseFloat((n.match(/^gemini-(\d+(?:\.\d+)?)/)||[0,0])[1]);
+  const names = (models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes('generateContent'))
+    .map(m=>String(m.name||'').replace(/^models\//,''))
+    .filter(n=>/^gemini-\d+(\.\d+)?-flash(?!-lite)/.test(n) && !/image|tts|live|audio|embed|thinking|robotics|computer|exp/i.test(n));
+  names.sort((a,b)=>{ const sa=/preview/.test(a)?0:1, sb=/preview/.test(b)?0:1; return (sb-sa) || (ver(b)-ver(a)) || (a.length-b.length); });
+  return names[0] || null;
+}
+async function geminiGenerate(parts, mode){
+  const cfg = sdef();
+  const body = {contents:[{role:'user', parts}]};
+  if(mode!=='plain'){
+    body.generationConfig = {responseMimeType:'application/json'};
+    if(mode==='schema') body.generationConfig.responseSchema = VOCAB_SCHEMA_G;
+  }
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(cfg.model)}:generateContent`;
+  const j = await httpJSON(url, {method:'POST', headers:{'Content-Type':'application/json','x-goog-api-key':cfg.key}, body:JSON.stringify(body)});
+  const cand = j && j.candidates && j.candidates[0];
+  if(!cand) throw new ApiError('Der Anbieter hat keine Antwort geliefert' + ((j && j.promptFeedback && j.promptFeedback.blockReason) ? ' (blockiert: '+j.promptFeedback.blockReason+')' : '') + '.', 0);
+  const text = ((cand.content && cand.content.parts) || []).filter(p=>!p.thought).map(p=>p.text||'').join('');
+  if(!text) throw new ApiError('Leere Antwort (Grund: '+(cand.finishReason||'unbekannt')+').', 0);
+  return text;
+}
+async function geminiVision(b64, prompt){
+  const parts = [{inline_data:{mime_type:'image/jpeg', data:b64}}, {text:prompt}];
+  let last;
+  for(const mode of ['schema','json','plain']){
+    try{ return await withModelFix(()=>geminiGenerate(parts, mode)); }
+    catch(e){ last = e; if(e.status!==400 || /api key|api_key/i.test(e.message)) throw e; }
+  }
+  throw last;
+}
+
+/* ---- Claude ---- */
+const claudeHeaders = ()=>({'content-type':'application/json','x-api-key':sdef().key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'});
+async function claudeVision(b64, prompt){
+  const j = await withModelFix(()=>httpJSON('https://api.anthropic.com/v1/messages', {method:'POST', headers:claudeHeaders(), body:JSON.stringify({
+    model: sdef().model, max_tokens: 8000,
+    tools:[{name:'save_vocab', description:'Speichert die erkannten Vokabeln der Seite.', input_schema:VOCAB_SCHEMA_C}],
+    tool_choice:{type:'tool', name:'save_vocab'},
+    messages:[{role:'user', content:[{type:'image', source:{type:'base64', media_type:'image/jpeg', data:b64}}, {type:'text', text:prompt}]}]
+  })}));
+  if(j.stop_reason==='max_tokens') throw new ApiError('Die Antwort war zu lang und wurde abgeschnitten.', 0);
+  const tu = (j.content||[]).find(c=>c.type==='tool_use');
+  if(tu && tu.input) return JSON.stringify(tu.input);
+  const tx = (j.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('');
+  if(tx) return tx;
+  throw new ApiError('Leere Antwort.', 0);
+}
+async function discoverModel(){
+  if(scanCfg.provider==='gemini'){
+    const j = await httpJSON('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', {headers:{'x-goog-api-key':sdef().key}});
+    return pickGeminiModel(j.models);
+  }
+  const j = await httpJSON('https://api.anthropic.com/v1/models?limit=100', {headers:claudeHeaders()});
+  const m = (j.data||[]).find(x=>/sonnet/.test(x.id)) || (j.data||[])[0];
+  return m ? m.id : null;
+}
+const visionCall = async (b64, prompt)=> parseVocabJSON(scanCfg.provider==='gemini' ? await geminiVision(b64,prompt) : await claudeVision(b64,prompt));
+
+function niceError(e){
+  const m = (e && e.message) ? e.message : String(e), st = e && e.status;
+  if(st===400 && /api key|api_key/i.test(m)) return `Der API-Schlüssel ist ungültig. (${m})`;
+  if(st===401 || st===403) return `Zugriff abgelehnt – ist der API-Schlüssel richtig und für diesen Anbieter gültig? (${m})`;
+  if(st===404) return `Das Modell wurde nicht gefunden – trage in den Einstellungen ein anderes Modell ein. (${m})`;
+  if(st===429) return `Das Limit des Anbieters ist gerade erreicht. Bitte kurz warten und es noch einmal versuchen. (${m})`;
+  return m;
+}
+
+/* ---- Einstellungen ---- */
+function fillScanFields(){
+  const c = sdef();
+  $('#sprov').value = scanCfg.provider; $('#smodel').value = c.model; $('#skey').value = c.key;
+  $('#shint').innerHTML = scanCfg.provider==='gemini'
+    ? 'Kostenlosen Schlüssel erstellen: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> (Google-Konto nötig). Das Modell wird bei Bedarf automatisch angepasst.'
+    : 'Schlüssel erstellen: <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a> (benötigt API-Guthaben, ein Claude-Abo reicht dafür nicht).';
+}
+function readScanFields(){
+  const c = sdef(); c.key = $('#skey').value.trim(); c.model = $('#smodel').value.trim() || SCAN_DEFAULT[scanCfg.provider]; scanSave();
+}
+function setScanStatus(t, kind){ const el = $('#scanStatus'); el.textContent = t; el.className = 'status ' + (kind||'muted'); }
+function setSStat(t, kind){ const el = $('#sstat'); el.textContent = t; el.className = 'status ' + (kind||'muted'); }
+$('#sprov').onchange = ()=>{ readScanFields(); scanCfg.provider = $('#sprov').value; scanSave(); fillScanFields(); };
+$('#ssave').onclick = ()=>{ readScanFields(); setSStat('✓ Gespeichert.', 'ok'); };
+$('#sdel').onclick = ()=>{ sdef().key = ''; scanSave(); fillScanFields(); setSStat('Schlüssel gelöscht.'); };
+$('#stest').onclick = async ()=>{
+  readScanFields(); const c = sdef();
+  if(!c.key){ setSStat('Bitte zuerst einen Schlüssel eintragen.', 'err'); return; }
+  setSStat('Teste Verbindung …'); modelFixTried = false;
+  try{
+    let out;
+    if(scanCfg.provider==='gemini') out = await withModelFix(()=>geminiGenerate([{text:'Antworte nur mit dem Wort OK.'}], 'plain'));
+    else{
+      const j = await withModelFix(()=>httpJSON('https://api.anthropic.com/v1/messages', {method:'POST', headers:claudeHeaders(), body:JSON.stringify({model:sdef().model, max_tokens:20, messages:[{role:'user', content:'Antworte nur mit dem Wort OK.'}]})}));
+      out = (j.content||[]).map(x=>x.text||'').join('');
+    }
+    setSStat(`✓ Verbindung steht (Modell: ${sdef().model}). Antwort: ${String(out).trim().slice(0,40)}`, 'ok');
+  }catch(e){ setSStat('✗ '+niceError(e), 'err'); }
+};
+
+/* ---- Fotos ---- */
+let scanItems = [], scanBusy = false;
+async function loadBitmap(file){
+  try{ return await createImageBitmap(file, {imageOrientation:'from-image'}); }
+  catch(e){
+    return await new Promise((res,rej)=>{ const im = new Image(); im.onload = ()=>res(im); im.onerror = ()=>rej(new Error('Das Bild konnte nicht gelesen werden.')); im.src = URL.createObjectURL(file); });
+  }
+}
+async function renderItem(it, maxSide, q){
+  if(!it.bmpP) it.bmpP = loadBitmap(it.file);
+  const bmp = await it.bmpP;
+  const sw = bmp.width, sh = bmp.height, sc = Math.min(1, maxSide/Math.max(sw,sh));
+  const dw = Math.max(1,Math.round(sw*sc)), dh = Math.max(1,Math.round(sh*sc));
+  const rot = ((it.rot%360)+360)%360, swap = rot===90 || rot===270;
+  const cv = document.createElement('canvas'); cv.width = swap?dh:dw; cv.height = swap?dw:dh;
+  const ctx = cv.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.translate(cv.width/2, cv.height/2); ctx.rotate(rot*Math.PI/180); ctx.drawImage(bmp, -dw/2, -dh/2, dw, dh);
+  return cv.toDataURL('image/jpeg', q);
+}
+async function renderThumbs(){
+  const box = $('#thumbs'); box.innerHTML = '';
+  for(const it of scanItems){
+    const d = document.createElement('div'); d.className = 'thumb'; d.dataset.id = it.id;
+    d.innerHTML = '<img alt="Foto"><div class="tb"><button data-act="rot" title="Drehen">↻</button><button data-act="del" title="Entfernen">✕</button></div>';
+    box.appendChild(d);
+    try{ d.querySelector('img').src = await renderItem(it, 360, .8); }catch(e){ d.querySelector('img').alt = 'Bild nicht lesbar'; }
+  }
+  $('#scanBtn').disabled = scanBusy || !scanItems.length;
+}
+$('#thumbs').addEventListener('click', async e=>{
+  const d = e.target.closest('.thumb'); if(!d) return;
+  const it = scanItems.find(x=>x.id===d.dataset.id); if(!it) return;
+  const btn = e.target.closest('button');
+  if(btn && btn.dataset.act==='del'){ scanItems = scanItems.filter(x=>x!==it); renderThumbs(); }
+  else if(btn && btn.dataset.act==='rot'){ it.rot = (it.rot+90)%360; renderThumbs(); }
+  else if(e.target.tagName==='IMG'){ $('#lbimg').src = await renderItem(it, 1800, .85); $('#lightbox').classList.remove('hidden'); }
+});
+$('#lbclose').onclick = ()=>$('#lightbox').classList.add('hidden');
+$('#lightbox').addEventListener('click', e=>{ if(e.target.id==='lightbox') $('#lightbox').classList.add('hidden'); });
+function addScanFiles(files){
+  files = [...files].filter(f=>/^image\//.test(f.type) || /\.(jpe?g|png|webp|heic|heif)$/i.test(f.name));
+  if(!files.length) return;
+  files.forEach(f=>scanItems.push({id:uid(), file:f, rot:0}));
+  setScanStatus(''); renderThumbs();
+}
+const drop = $('#drop'), fileInput = $('#file');
+drop.onclick = ()=>fileInput.click();
+drop.onkeydown = e=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); fileInput.click(); } };
+['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e=>addScanFiles(e.dataTransfer.files));
+fileInput.onchange = ()=>{ addScanFiles(fileInput.files); fileInput.value = ''; };
+window.addEventListener('paste', e=>{
+  const fs = [...((e.clipboardData && e.clipboardData.files)||[])].filter(f=>/^image\//.test(f.type));
+  if(fs.length && !$('#setup').classList.contains('hidden') && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) addScanFiles(fs);
+});
+
+/* ---- Erkennen ---- */
+function setScanProg(p){ $('#sprogWrap').classList.remove('hidden'); $('#sprog').style.width = Math.round(p*100)+'%'; }
+async function runScan(){
+  if(scanBusy || !scanItems.length) return;
+  readScanFields();
+  if(!sdef().key){ $('#scanSet').open = true; setScanStatus('Bitte zuerst unter „KI-Zugang einrichten“ einen API-Schlüssel eintragen.', 'err'); $('#skey').focus(); return; }
+  scanBusy = true; modelFixTried = false; $('#scanBtn').disabled = true; $('#scanRes').classList.add('hidden');
+  const verify = $('#sverify').checked, total = scanItems.length * (verify?2:1);
+  let done = 0, corrected = 0, verifyFailed = 0; const all = [];
+  try{
+    for(let i=0;i<scanItems.length;i++){
+      const pre = scanItems.length>1 ? `Foto ${i+1}/${scanItems.length}: ` : '';
+      setScanProg(done/total); setScanStatus(pre+'Bild wird vorbereitet …');
+      const b64 = (await renderItem(scanItems[i], 2000, .92)).split(',')[1];
+      setScanStatus(pre+'Vokabeln werden erkannt … (kann bis zu eine Minute dauern)');
+      let list = await visionCall(b64, PROMPT_FIRST); done++; setScanProg(done/total);
+      if(!list.length) throw new Error('Auf dem Foto wurden keine Vokabeln gefunden. Ist die ganze Seite im Bild und die Schrift scharf? Mit ↻ lässt sich das Foto drehen.');
+      if(verify){
+        setScanStatus(pre+'Zweite Prüfung läuft …');
+        try{ const second = await visionCall(b64, promptVerify(list)); if(second.length){ corrected += diffCount(list, second); list = second; } }
+        catch(e){ console.warn(e); verifyFailed++; }
+        done++; setScanProg(done/total);
+      }
+      list.forEach(x=>all.push(x));
+    }
+    showScanResult(all, {corrected, verifyFailed, verify});
+  }catch(e){ console.error(e); setScanStatus('✗ '+niceError(e), 'err'); }
+  finally{ scanBusy = false; $('#scanBtn').disabled = !scanItems.length; setTimeout(()=>$('#sprogWrap').classList.add('hidden'), 900); }
+}
+$('#scanBtn').onclick = runScan;
+
+/* ---- Ergebnis prüfen & übernehmen ---- */
+let SR = [];
+function updateApplyBtn(){
+  const n = SR.filter(r=>r.sel && r.la.trim() && r.de.trim()).length;
+  const b = $('#sapply'); b.textContent = `✓ ${n} übernehmen`; b.disabled = !n;
+}
+function renderSR(){
+  $('#srbody').innerHTML = SR.map((r,i)=>`<tr class="${r.unsure?'unsure':''}" data-i="${i}">
+    <td class="c"><input type="checkbox" data-f="sel" ${r.sel?'checked':''}></td><td class="n">${i+1}</td>
+    <td><input data-f="la" value="${esc(r.la)}"></td><td><input data-f="de" value="${esc(r.de)}"></td>
+    <td>${r.unsure?'<span class="tag warn">unsicher</span> ':''}${r.dup?'<span class="tag">schon in Liste</span>':''}</td></tr>`).join('');
+  updateApplyBtn();
+}
+function showScanResult(list, info){
+  const have = new Set(vocab.map(v=>normLa(v.la)));
+  SR = list.map(x=>{ const dup = have.has(normLa(x.la)); return {la:x.la, de:x.de, unsure:x.unsure, dup, sel:!dup}; });
+  const u = SR.filter(r=>r.unsure).length, d = SR.filter(r=>r.dup).length;
+  const bits = [`✓ ${SR.length} Vokabeln erkannt`];
+  if(u) bits.push(`⚠ ${u} unsicher (gelb)`);
+  if(d) bits.push(`${d} schon in deiner Liste (abgewählt)`);
+  if(info.verify && !info.verifyFailed) bits.push(info.corrected ? `${info.corrected} in der Zweitprüfung korrigiert` : 'Zweitprüfung ohne Änderungen');
+  if(info.verifyFailed) bits.push('Zweitprüfung nicht möglich – Ergebnis der ersten Erkennung');
+  const sm = $('#srsum'); sm.textContent = bits.join(' · '); sm.className = 'status ' + (u||info.verifyFailed ? 'muted' : 'ok');
+  setScanStatus('Fertig – bitte unten kurz prüfen.', 'ok');
+  renderSR(); $('#scanRes').classList.remove('hidden'); $('#scanRes').scrollIntoView({behavior:'smooth', block:'start'});
+}
+$('#srbody').addEventListener('input', e=>{
+  const tr = e.target.closest('tr'), f = e.target.dataset.f; if(!tr || !f || f==='sel') return;
+  SR[+tr.dataset.i][f] = e.target.value; updateApplyBtn();
+});
+$('#srbody').addEventListener('change', e=>{
+  const tr = e.target.closest('tr'); if(!tr || e.target.dataset.f!=='sel') return;
+  SR[+tr.dataset.i].sel = e.target.checked; updateApplyBtn();
+});
+$('#sall').onclick = ()=>{ const any = SR.some(r=>r.sel); SR.forEach(r=>r.sel = !any); renderSR(); };
+$('#sdiscard').onclick = ()=>{ SR = []; $('#scanRes').classList.add('hidden'); setScanStatus(''); };
+$('#sapply').onclick = ()=>{
+  const rows = SR.filter(r=>r.sel && r.la.trim() && r.de.trim());
+  if(!rows.length) return;
+  rows.forEach(r=>vocab.push({id:uid(), la:r.la.trim(), de:r.de.trim()}));
+  save(); renderTable();
+  SR = []; $('#scanRes').classList.add('hidden'); scanItems = []; renderThumbs();
+  setScanStatus(`✓ ${rows.length} Vokabeln zur Liste hinzugefügt.`, 'ok');
+  $('#tbody').closest('.card').scrollIntoView({behavior:'smooth', block:'start'});
+};
+fillScanFields();
+if(!sdef().key) $('#scanSet').open = true;
+
+/* ====================== Strenge Antwortprüfung ====================== */
+const stripPar = s => s.replace(/\([^)]*\)|\[[^\]]*\]/g,' ');
+
+// Deutsch: Groß-/Kleinschreibung egal, ä/ae, ö/oe, ü/ue, ß/ss gleichwertig, sonst exakt
+function normDe(s){
+  return s.toLowerCase().replace(/ß/g,'ss').replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue')
+    .replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();
+}
+// Latein: Längenstriche und Groß-/Kleinschreibung egal
+function normLa(s){
+  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/[^a-z0-9\s\-]/g,' ').replace(/\s+/g,' ').trim();
+}
+function splitDe(text){
+  return stripPar(text).split(/[;,]/).map(x=>x.replace(/\s+/g,' ').trim()).filter(x=>normDe(x));
+}
+function lev(a,b){
+  if(a===b) return 0; if(!a.length) return b.length; if(!b.length) return a.length;
+  let prev = Array.from({length:b.length+1},(_,i)=>i);
+  for(let i=1;i<=a.length;i++){
+    const cur=[i];
+    for(let j=1;j<=b.length;j++) cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));
+    prev=cur;
+  }
+  return prev[b.length];
+}
+function typoClose(a,b){ return Math.min(a.length,b.length)>=5 && lev(a,b)<=1; }
+
+/* Latein → Deutsch: JEDE genannte Bedeutung muss stimmen UND alle Bedeutungen müssen genannt werden */
+function checkDe(user, expected, typoOk){
+  const exp = splitDe(expected).map(raw=>({raw, n:normDe(raw), used:false}));
+  const items = splitDe(user).map(raw=>{
+    const n = normDe(raw);
+    let hit = exp.find(e=>!e.used && e.n===n);
+    if(!hit && typoOk) hit = exp.find(e=>!e.used && typoClose(e.n,n));
+    if(hit){ hit.used = true; return {raw, state:'ok'}; }
+    return {raw, state: exp.some(e=>e.used && (e.n===n || (typoOk && typoClose(e.n,n)))) ? 'dup' : 'bad'};
+  });
+  const hits = items.filter(i=>i.state==='ok').length;
+  const wrong = items.length - hits;
+  const missing = exp.length - hits;
+  return {kind:'de', ok: wrong===0 && missing===0, warn: wrong===0 && hits>0 && missing>0, items, hits, wrong, missing, total: exp.length};
+}
+/* Deutsch → Latein: Grundform (oder komplette Angabe) muss stimmen */
+function checkLa(user, expected, typoOk){
+  const e = stripPar(expected);
+  const segs = e.split(',');
+  const forms = segs[0].split('/').map(normLa).filter(Boolean);
+  const restExp = normLa(segs.slice(1).join(' '));
+  const uSegs = stripPar(user).split(',');
+  const uHead = normLa(uSegs[0]);
+  const uRest = normLa(uSegs.slice(1).join(' '));
+  const headOk = forms.some(f => f===uHead || (typoOk && typoClose(f,uHead)));
+  const ok = headOk && (uRest==='' || uRest===restExp);
+  return {kind:'la', ok};
+}
+
+/* ====================== Quiz ====================== */
+let Q = null;
+function show(id){
+  ['setup','quiz','result'].forEach(s=>$('#'+s).classList.toggle('hidden', s!==id));
+  const el = $('#'+id); anim(el,'enter'); window.scrollTo(0,0);
+}
+function info(){ $('#qInfo').textContent = `Karte ${Math.min(Q.i+1,Q.cards.length)} von ${Q.cards.length} · ✓ ${Q.right} · ✗ ${Q.wrong.length}${Q.partial.length?` · ⚠ ${Q.partial.length}`:''}`; }
+function showStreak(bump){
+  const el = $('#streak');
+  el.textContent = Q.streak>=2 ? `🔥 ${Q.streak}` : '';
+  if(bump && Q.streak>=2) anim(el,'anim-bump');
+}
+
+function startQuiz(cards, opts){
+  Q = { cards: shuffle(cards), i:0, wrong:[], right:0, total:cards.length, mode:opts.mode, dir:opts.dir, typo:opts.typo, partial:[], forced:0, state:'', streak:0, answered:false };
+  ac(); SFX.start(); show('quiz'); showStreak(); nextCard();
+}
+$('#start').onclick = ()=>{
+  const valid = vocab.filter(v=>v.la.trim() && v.de.trim());
+  if(valid.length < 1){ alert('Bitte zuerst Vokabeln hinzufügen (Text einfügen oder in die Tabelle tippen).'); return; }
+  let pool = shuffle(valid);
+  const amt = $('#amount').value; if(amt!=='all') pool = pool.slice(0, +amt);
+  startQuiz(pool, {mode:$('#mode').value, dir:$('#dir').value, typo:$('#typo').checked});
+};
+
+function expectedText(){ return Q.curDir==='la-de' ? Q.cur.de : Q.cur.la; }
+
+function nextCard(){
+  if(Q.i >= Q.cards.length) return finish();
+  const c = Q.cards[Q.i]; Q.cur = c; Q.answered = false;
+  Q.curDir = Q.dir==='mix' ? (Math.random()<.5?'la-de':'de-la') : Q.dir;
+  const fromLa = Q.curDir==='la-de';
+  $('#qDir').textContent = fromLa ? 'Latein → Deutsch' : 'Deutsch → Latein';
+  $('#qPrompt').textContent = fromLa ? c.la : c.de;
+  info();
+  $('#qProg').style.width = (Q.i/Q.cards.length*100)+'%';
+  const fb = $('#feedback'); fb.className='feedback'; fb.innerHTML='';
+  $('#nextArea').classList.add('hidden'); $('#rateArea').classList.add('hidden');
+  const typing = Q.mode==='type';
+  $('#typeArea').classList.toggle('hidden', !typing);
+  $('#flipArea').classList.toggle('hidden', typing);
+  $('#overrideBtn').classList.add('hidden');
+  anim($('#qcard'),'anim-in');
+  if(typing){ const a=$('#answer'); a.value=''; a.disabled=false; updateHint(); a.focus(); }
+  else $('#showBtn').focus();
+}
+
+/* Live-Anzeige: wie viele Bedeutungen sind noch offen (nach Anzahl der eingegebenen Einträge) */
+function updateHint(){
+  const h = $('#hint');
+  if(Q.curDir==='de-la'){
+    h.innerHTML = 'Gesucht: das lateinische Wort <span class="muted">(die Grundform genügt, z. B. <i>amicus</i>)</span>';
+    return;
+  }
+  const total = splitDe(Q.cur.de).length;
+  const typed = splitDe($('#answer').value).length;
+  const left = Math.max(0, total-typed);
+  const dots = Array.from({length:Math.max(total,typed)},(_,i)=>`<i class="${i<typed?(i>=total?'over':'on'):''}"></i>`).join('');
+  let txt;
+  if(typed>total) txt = `Zu viele Einträge – gesucht sind <b>${total}</b>`;
+  else if(left>0) txt = `Noch <b>${left}</b> ${left===1?'Bedeutung':'Bedeutungen'} offen <span class="muted">(von ${total}, mit Komma trennen)</span>`;
+  else txt = `Alle ${total} ${total===1?'Bedeutung':'Bedeutungen'} eingegeben – Enter zum Prüfen`;
+  h.innerHTML = `<div class="dots">${dots}</div>${txt}`;
+}
+$('#answer').addEventListener('input', updateHint);
+
+function renderChips(res){
+  const parts = res.items.map((it,i)=>`<span class="chip ${it.state}" style="animation-delay:${i*90}ms">${it.state==='ok'?'✓ ':it.state==='dup'?'2× ':'✗ '}${esc(it.raw)}</span>`);
+  for(let k=0;k<(res.wrong>0?0:res.missing);k++) parts.push(`<span class="chip miss" style="animation-delay:${(res.items.length+k)*90}ms">? fehlt</span>`);
+  return `<div class="chips">${parts.join('')}</div>`;
+}
+
+function judge(res, userText){
+  Q.answered = true; Q.state = 'bad';
+  const fb = $('#feedback'), card = $('#qcard'), exp = expectedText();
+  const forceBtn = $('#overrideBtn'); forceBtn.classList.add('hidden');
+  if(res.ok){
+    Q.state = 'ok'; Q.right++; Q.streak++;
+    fb.className = 'feedback ok';
+    if(res.kind==='de') fb.innerHTML = `<div class="fbtitle">✓ Richtig – ${res.total===1?'die Bedeutung':'alle '+res.total+' Bedeutungen'}!</div>${renderChips(res)}`;
+    else fb.innerHTML = `<div class="fbtitle">✓ Richtig!</div><div class="fbline"><b>${esc(exp)}</b></div>`;
+    SFX.ok(); anim(card,'anim-ok');
+    if(Q.streak>=3 && Q.streak%3===0) setTimeout(()=>SFX.streak(Q.streak), 380);
+  } else if(res.warn){
+    Q.state = 'warn'; Q.right++; Q.streak++; Q.partial.push({card:Q.cur});
+    fb.className = 'feedback warn';
+    if(res.kind==='de'){
+      fb.innerHTML = `<div class="fbtitle">⚠ Gewertet, aber unvollständig – es ${res.missing===1?'fehlt':'fehlen'} noch ${res.missing} von ${res.total} ${res.total===1?'Bedeutung':'Bedeutungen'}</div>${renderChips(res)}<div class="fbline">Das ist kein Fehler, nur vermerkt. Vollständig: <b>${esc(exp)}</b></div>`;
+    }
+    SFX.warn(); anim(card,'anim-warn');
+  } else {
+    Q.wrong.push(Q.cur); Q.prevStreak = Q.streak; Q.streak = 0;
+    fb.className = 'feedback bad';
+    if(res.kind==='de'){
+      let title;
+      if(!userText) title = '✗ Nicht gewusst';
+      else if(res.wrong>0) title = '✗ Falsch – eine falsche Bedeutung macht die ganze Antwort falsch';
+      else title = '✗ Keine Bedeutung erkannt';
+      const stats = !userText ? '' : res.wrong>0
+        ? `<div class="fbline">Richtig: <b>${res.hits}</b> von ${res.total} · Falsch: <b>${res.wrong}</b></div>`
+        : `<div class="fbline">Richtig: <b>${res.hits}</b> von ${res.total} · Es ${res.missing===1?'fehlt':'fehlen'} noch: <b>${res.missing}</b></div>`;
+      fb.innerHTML = `<div class="fbtitle">${title}</div>${userText?renderChips(res):''}${stats}<div class="fbline">Vollständig richtig wäre: <b>${esc(exp)}</b></div>`;
+    } else {
+      fb.innerHTML = `<div class="fbtitle">${userText?'✗ Falsch':'✗ Nicht gewusst'}</div>` +
+        (userText?`<div class="fbline">Deine Antwort: <span class="chip bad" style="animation:none">${esc(userText)}</span></div>`:'') +
+        `<div class="fbline">Richtig wäre: <b>${esc(exp)}</b></div>`;
+    }
+    SFX.bad(); anim(card,'anim-shake');
+    forceBtn.classList.remove('hidden');
+  }
+  showStreak(true); info();
+  $('#answer').disabled = true;
+  $('#nextArea').classList.remove('hidden'); $('#nextBtn').focus();
+}
+function check(){
+  if(Q.answered) return;
+  const el = $('#answer'), val = el.value;
+  if(!val.trim()){ el.focus(); anim(el,'anim-shake'); return; }
+  const res = Q.curDir==='la-de' ? checkDe(val, Q.cur.de, Q.typo) : checkLa(val, Q.cur.la, Q.typo);
+  judge(res, val.trim());
+}
+$('#checkBtn').onclick = check;
+$('#skipBtn').onclick = ()=>{
+  if(Q.answered) return;
+  const exp = splitDe(Q.cur.de);
+  judge(Q.curDir==='la-de' ? {kind:'de', ok:false, warn:false, items:[], hits:0, wrong:0, missing:exp.length, total:exp.length} : {kind:'la', ok:false}, '');
+};
+$('#overrideBtn').onclick = ()=>{
+  if(!Q.answered || Q.state!=='bad') return;
+  const k = Q.wrong.lastIndexOf(Q.cur); if(k>=0) Q.wrong.splice(k,1);
+  Q.right++; Q.streak = (Q.prevStreak||0) + 1; Q.forced++; Q.state = 'forced';
+  const fb = $('#feedback'); fb.className = 'feedback ok';
+  fb.innerHTML = `<div class="fbtitle">✓ Trotzdem gewertet</div><div class="fbline"><b>${esc(expectedText())}</b></div>`;
+  $('#overrideBtn').classList.add('hidden');
+  SFX.ok(); anim($('#qcard'),'anim-ok'); showStreak(true); info(); $('#nextBtn').focus();
+};
+$('#answer').addEventListener('keydown', e=>{
+  if(e.key==='Enter'){ e.preventDefault(); Q.answered ? advance() : check(); }
+});
+function advance(){ SFX.next(); Q.i++; nextCard(); }
+$('#nextBtn').onclick = advance;
+
+// Karteikarten-Modus (Selbstbewertung)
+$('#showBtn').onclick = ()=>{
+  const fb = $('#feedback'); fb.className='feedback neutral';
+  fb.innerHTML = `<div class="reveal">${esc(expectedText())}</div><span class="muted">Hast du es (vollständig) gewusst?</span>`;
+  SFX.flip();
+  $('#flipArea').classList.add('hidden'); $('#rateArea').classList.remove('hidden'); $('#rightBtn').focus();
+};
+function rate(ok){
+  if(ok){ Q.right++; Q.streak++; SFX.ok(); anim($('#qcard'),'anim-ok'); if(Q.streak>=3 && Q.streak%3===0) setTimeout(()=>SFX.streak(Q.streak),380); }
+  else { Q.wrong.push(Q.cur); Q.streak=0; SFX.bad(); anim($('#qcard'),'anim-shake'); }
+  showStreak(true); info();
+  $('#rateArea').classList.add('hidden');
+  setTimeout(()=>{ Q.i++; nextCard(); }, ok?260:520);
+}
+$('#rightBtn').onclick = ()=>rate(true);
+$('#wrongBtn').onclick = ()=>rate(false);
+
+document.addEventListener('keydown', e=>{
+  if($('#quiz').classList.contains('hidden')) return;
+  const tag = document.activeElement.tagName;
+  if(Q.mode==='flip' && tag!=='INPUT'){
+    if(e.key===' '||e.key==='Enter'){ if(!$('#flipArea').classList.contains('hidden')){ e.preventDefault(); $('#showBtn').click(); } }
+    else if(e.key==='ArrowRight' && !$('#rateArea').classList.contains('hidden')) $('#rightBtn').click();
+    else if(e.key==='ArrowLeft' && !$('#rateArea').classList.contains('hidden')) $('#wrongBtn').click();
+  } else if(Q.mode==='type' && Q.answered && e.key==='Enter' && tag!=='BUTTON'){ e.preventDefault(); advance(); }
+});
+
+$('#quitBtn').onclick = ()=>{ if(confirm('Abfrage beenden?')) show('setup'); };
+
+function finish(){
+  show('result');
+  const pct = Math.round(Q.right/Q.total*100);
+  $('#qProg').style.width='100%';
+  // Zähl-Animation
+  const sc = $('#rScore'); let n = 0;
+  const step = ()=>{ n++; sc.textContent = `${Math.min(n,Q.right)} / ${Q.total}`; if(n<Q.right) setTimeout(step, Math.max(25, 600/Math.max(1,Q.right))); };
+  sc.textContent = `0 / ${Q.total}`; if(Q.right>0) setTimeout(step,250);
+  anim(sc,'anim-bounce');
+  $('#rText').textContent = `${pct} % richtig${Q.partial.length?` · ${Q.partial.length} davon nicht vollständig`:''}${Q.forced?` · ${Q.forced} manuell gewertet`:''}` + (pct===100?' – perfekt! 🏛️':pct>=80?' – sehr gut!':pct>=50?' – weiter üben!':' – das wird noch.');
+  const uniq = [...new Set(Q.wrong)];
+  $('#rBad').innerHTML = uniq.length ? `<h2>Nochmal ansehen</h2>` + uniq.map((c,i)=>`<div class="anim-in" style="animation-delay:${i*50}ms"><b>${esc(c.la)}</b><span>${esc(c.de)}</span></div>`).join('') : '';
+  $('#rWarn').innerHTML = Q.partial.length ? `<h2 style="color:var(--warn);margin-top:18px">⚠ Nicht vollständig (zählt als richtig)</h2>` + Q.partial.map((p,i)=>`<div class="anim-in warnrow" style="animation-delay:${i*50}ms"><b>${esc(p.card.la)}</b><span>${esc(p.card.de)}</span></div>`).join('') : '';
+  $('#retryBtn').classList.toggle('hidden', !uniq.length);
+  SFX.fin(pct);
+  if(pct>=80) setTimeout(confetti, 200);
+}
+$('#retryBtn').onclick = ()=>startQuiz([...new Set(Q.wrong)], {mode:Q.mode, dir:Q.dir, typo:Q.typo});
+$('#againBtn').onclick = ()=>$('#start').click();
+$('#backBtn').onclick = ()=>show('setup');
+
+/* ====================== Start ====================== */
+renderTable();
+</script>
+</body>
+</html>
