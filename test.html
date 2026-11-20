@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Formular</title>
+<style>
+  :root {
+    --bg: #eef3f1;
+    --paper: #ffffff;
+    --ink: #1c2b2a;
+    --muted: #5b6e6c;
+    --accent: #1f6f6b;
+    --line: #d5e0dd;
+    --shadow: 0 30px 60px -30px rgba(20, 60, 58, .35);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #101a19;
+      --paper: #182524;
+      --ink: #e6f0ee;
+      --muted: #93a8a5;
+      --accent: #5fc4bd;
+      --line: #2a3d3b;
+      --shadow: 0 30px 60px -30px rgba(0, 0, 0, .7);
+    }
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: "Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif;
+    color: var(--ink);
+    background:
+      radial-gradient(900px 500px at 85% -10%, rgba(31,111,107,.18), transparent 60%),
+      radial-gradient(700px 420px at -5% 105%, rgba(31,111,107,.12), transparent 60%),
+      var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 56px 20px 40px;
+  }
+  header { max-width: 640px; width: 100%; margin-bottom: 28px; }
+  h1 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-weight: 600;
+    font-size: clamp(2rem, 5vw, 2.8rem);
+    line-height: 1.15;
+    margin: 0 0 12px;
+    letter-spacing: -.01em;
+  }
+  header p { margin: 0; color: var(--muted); font-size: 1.05rem; line-height: 1.55; max-width: 52ch; }
+  main {
+    width: 100%;
+    max-width: 680px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    box-shadow: var(--shadow);
+    padding: 20px;
+    border-top: 5px solid var(--accent);
+  }
+  .frame { display: flex; justify-content: center; }
+  iframe { border: none; width: 640px; max-width: 100%; height: 480px; max-height: 100vh; }
+  @media (max-width: 600px) {
+    main { padding: 8px; border-radius: 14px; }
+    iframe { height: 75vh; }
+  }
+  footer { margin-top: 28px; color: var(--muted); font-size: .9rem; text-align: center; }
+  footer a { color: var(--accent); }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Deine Meinung zählt</h1>
+    <p>Nimm dir einen Moment Zeit und fülle das kurze Formular aus. Es dauert nur wenige Minuten.</p>
+  </header>
+
+  <main>
+    <div class="frame">
+      <iframe width="640px" height="480px" src="https://forms.cloud.microsoft/e/hLjKzHa7yg?embed=true" frameborder="0" marginwidth="0" marginheight="0" style="border: none; max-width:100%; max-height:100vh" allowfullscreen webkitallowfullscreen mozallowfullscreen msallowfullscreen></iframe>
+    </div>
+  </main>
+
+  <footer>
+    Wird das Formular nicht angezeigt? <a href="https://forms.cloud.microsoft/e/hLjKzHa7yg" target="_blank" rel="noopener">Hier im neuen Tab öffnen</a>
+  </footer>
+</body>
+</html>
