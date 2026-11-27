@@ -1,0 +1,562 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Zufallslabor – Zufallsexperimente simulieren</title>
+<style>
+:root{
+  --bg:#f4f1ea; --card:#fbfaf6; --ink:#23302f; --muted:#6c7773; --line:#dcd7ca;
+  --accent:#2f5d62; --accent2:#b58a45; --accent3:#9a5b55; --accent-soft:rgba(47,93,98,.12);
+  --on-accent:#fff; --die:#fffefb;
+  --shadow:0 1px 2px rgba(35,48,47,.05),0 10px 32px rgba(35,48,47,.06);
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+:root[data-theme="dark"]{
+  --bg:#13181a; --card:#1a2123; --ink:#e6e8e3; --muted:#92a09b; --line:#2b3537;
+  --accent:#7fb3b3; --accent2:#d3a95f; --accent3:#cf8a82; --accent-soft:rgba(127,179,179,.14);
+  --on-accent:#10191a; --die:#222b2d; --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 32px rgba(0,0,0,.25);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#13181a; --card:#1a2123; --ink:#e6e8e3; --muted:#92a09b; --line:#2b3537;
+    --accent:#7fb3b3; --accent2:#d3a95f; --accent3:#cf8a82; --accent-soft:rgba(127,179,179,.14);
+    --on-accent:#10191a; --die:#222b2d; --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 32px rgba(0,0,0,.25);
+  }
+}
+*{box-sizing:border-box}
+html{color-scheme:light dark}
+:root[data-theme="light"]{color-scheme:light}
+:root[data-theme="dark"]{color-scheme:dark}
+body{margin:0;font-family:var(--sans);color:var(--ink);font-size:15px;line-height:1.5;
+  background:radial-gradient(1100px 560px at 88% -8%,rgba(181,138,69,.11),transparent 60%),
+             radial-gradient(900px 520px at -8% 108%,rgba(47,93,98,.11),transparent 60%),var(--bg);
+  background-attachment:fixed;min-height:100vh}
+.app{display:grid;grid-template-columns:268px 1fr;min-height:100vh}
+.side{padding:30px 18px 24px;border-right:1px solid var(--line);position:sticky;top:0;height:100vh;overflow:auto;display:flex;flex-direction:column}
+.brand{font-family:var(--serif);font-size:28px;letter-spacing:.01em;padding:0 12px}
+.brand em{font-style:italic;color:var(--accent)}
+.tag{font-size:12px;color:var(--muted);padding:2px 12px 6px;letter-spacing:.04em}
+.grp{font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin:22px 0 6px 12px}
+.exp{display:block;width:100%;text-align:left;padding:8px 12px;border:0;border-radius:10px;background:transparent;color:var(--ink);cursor:pointer;font:inherit;font-size:14px;transition:background .15s}
+.exp:hover{background:var(--accent-soft)}
+.exp.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.side-foot{margin-top:auto;padding:22px 12px 0;font-size:11.5px;color:var(--muted)}
+main{padding:34px 38px 64px;max-width:1220px;width:100%}
+.eyebrow{font-size:11.5px;text-transform:uppercase;letter-spacing:.16em;color:var(--accent2);font-weight:600}
+h2{font-family:var(--serif);font-weight:500;font-size:36px;margin:4px 0 8px;letter-spacing:.005em}
+.head p{max-width:72ch;color:var(--muted);margin:0;font-size:15.5px;line-height:1.65}
+.row{display:grid;grid-template-columns:1.2fr 1fr;gap:20px;margin-top:24px}
+.row2{display:grid;grid-template-columns:1.2fr 1fr;gap:20px;margin-top:20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:20px 22px;min-width:0}
+.card h3{margin:0 0 14px;font-size:11.5px;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.card h3 .legend{font-size:11.5px;text-transform:none;letter-spacing:.01em;font-weight:400;display:flex;gap:14px;flex-wrap:wrap}
+.legend i{display:inline-block;width:14px;height:0;border-top:2.5px solid;vertical-align:middle;margin-right:5px}
+.legend i.dash{border-top-style:dashed;border-top-width:2px}
+.legend i.band{height:9px;border:0;background:var(--accent-soft);border-radius:3px}
+.stage{min-height:270px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:6px 0}
+.stage svg{max-width:100%;height:auto}
+.wheelsvg{width:300px}
+.ph{color:var(--muted);font-family:var(--serif);font-style:italic;font-size:17px;text-align:center;padding:50px 10px}
+.cap{font-family:var(--serif);font-size:17px;color:var(--ink);text-align:center}
+.cap small{display:block;font-family:var(--sans);font-size:12px;color:var(--muted);margin-top:2px}
+.recent{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:30px;border-top:1px solid var(--line);margin-top:10px;padding-top:12px;font-size:12px;color:var(--muted)}
+.pill{background:var(--accent-soft);color:var(--accent);padding:2px 9px;border-radius:99px;font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.pill:first-of-type{background:var(--accent);color:var(--on-accent)}
+.field{display:block;margin-bottom:16px}
+.field>span{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:6px}
+.field b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--accent)}
+select{width:100%;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:14px}
+.runs{border-top:1px solid var(--line);padding-top:16px;margin-top:4px}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.btn{padding:8px 13px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--ink);font:inherit;font-size:13.5px;cursor:pointer;transition:background .15s,border-color .15s;font-variant-numeric:tabular-nums}
+.btn:hover{background:var(--accent-soft);border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--on-accent);border-color:transparent;font-weight:600}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.small{font-size:12px;padding:6px 10px}
+.play{display:grid;grid-template-columns:1fr 120px;gap:8px;margin-bottom:14px}
+.lbl{font-size:12px;color:var(--muted);margin:14px 0 8px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{border:0;background:transparent;color:var(--muted);padding:5px 12px;font:inherit;font-size:12px;cursor:pointer;text-transform:none;letter-spacing:0}
+.seg button.on{background:var(--accent);color:var(--on-accent)}
+.chartwrap{position:relative}
+canvas{width:100%;display:block}
+#hist{height:310px;cursor:pointer}
+#conv{height:260px}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--card);padding:7px 10px;border-radius:9px;font-size:12px;line-height:1.45;white-space:nowrap;opacity:0;transition:opacity .1s;z-index:3;font-variant-numeric:tabular-nums}
+.hint{font-size:12px;color:var(--muted);margin-top:8px}
+table{width:100%;border-collapse:collapse;font-size:13.5px;font-variant-numeric:tabular-nums}
+th{font-weight:500;color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.1em;text-align:right;padding:0 0 8px}
+th:first-child,td:first-child{text-align:left}
+td{padding:9px 0;border-top:1px solid var(--line);text-align:right}
+td:first-child{color:var(--muted)}
+td.v{font-weight:600}
+.coin{width:132px;height:132px;border-radius:50%;display:grid;place-items:center;font-family:var(--serif);font-size:23px;color:#fff;letter-spacing:.03em;background:radial-gradient(circle at 34% 28%,#dcbf82,#b58a45 58%,#8c692f);box-shadow:inset 0 0 0 6px rgba(255,255,255,.16),inset 0 0 0 7px rgba(0,0,0,.08),0 14px 26px rgba(0,0,0,.18)}
+.coin.t{background:radial-gradient(circle at 34% 28%,#a8c0c3,#5b7a8c 58%,#3d5766)}
+.coin.anim{animation:flip .95s cubic-bezier(.3,.6,.4,1)}
+@keyframes flip{0%{transform:translateY(0) rotateX(0)}45%{transform:translateY(-38px) rotateX(900deg)}100%{transform:translateY(0) rotateX(1800deg)}}
+.spin{animation:spin 2.6s cubic-bezier(.12,.7,.12,1) both}
+@keyframes spin{from{transform:rotate(0deg)}}
+.cards{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.pc{width:58px;height:84px;border-radius:9px;background:var(--die);border:1.5px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--serif);font-size:19px;line-height:1.1;box-shadow:0 2px 6px rgba(0,0,0,.06)}
+.pc.red{color:#a65d57}.pc small{font-size:24px}
+.pc.hit{outline:2.5px solid var(--accent2);outline-offset:2px}
+.die{fill:var(--die);stroke:var(--line)}.pip,.t-ink{fill:var(--ink)}.t-mut{fill:var(--muted)}
+.peg{fill:var(--muted);opacity:.7}.ln{stroke:var(--line);fill:none}
+.door{fill:var(--accent-soft);stroke:var(--line)}
+@media (max-width:980px){
+  .app{grid-template-columns:1fr}
+  .side{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);padding:20px 14px 14px}
+  #nav{display:flex;flex-wrap:wrap;gap:4px 4px}
+  .grp{width:100%;margin:12px 0 2px 4px}
+  .exp{width:auto}
+  .side-foot{display:none}
+  main{padding:22px 16px 48px}
+  .row,.row2{grid-template-columns:1fr}
+  h2{font-size:30px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">Zufalls<em>labor</em></div>
+    <div class="tag">Zufallsexperimente simulieren</div>
+    <nav id="nav"></nav>
+    <div class="side-foot">
+      <button class="btn small" id="theme">Darstellung: automatisch</button>
+      <p>Die Zufallszahlen stammen vom Pseudozufallsgenerator des Browsers.</p>
+    </div>
+  </aside>
+  <main>
+    <header class="head">
+      <div class="eyebrow" id="eyebrow"></div>
+      <h2 id="title"></h2>
+      <p id="desc"></p>
+    </header>
+    <div class="row">
+      <section class="card">
+        <h3>Letzter Versuch</h3>
+        <div class="stage" id="stage"></div>
+        <div class="recent" id="recent"></div>
+      </section>
+      <section class="card">
+        <h3>Einstellungen</h3>
+        <div id="params"></div>
+        <div class="runs">
+          <div class="play">
+            <button class="btn primary" id="play">▶ Fortlaufend</button>
+            <select id="speed"></select>
+          </div>
+          <div class="btns" id="adds"></div>
+          <div class="lbl"><button class="btn small" id="reset">Zurücksetzen</button></div>
+        </div>
+      </section>
+    </div>
+    <section class="card" style="margin-top:20px">
+      <h3><span id="axis">Verteilung</span>
+        <span class="seg" id="modeseg"><button data-m="rel" class="on">relativ</button><button data-m="abs">absolut</button></span>
+      </h3>
+      <div class="chartwrap"><canvas id="hist"></canvas><div class="tip" id="tip"></div></div>
+      <div class="hint"><span style="color:var(--accent2);font-weight:700">▬</span> Wahrscheinlichkeit (Theorie) &nbsp;·&nbsp; Balken anklicken, um das Ereignis unten zu beobachten.</div>
+    </section>
+    <div class="row2">
+      <section class="card">
+        <h3><span>Gesetz der großen Zahlen</span>
+          <span class="legend"><span><i style="border-color:var(--accent)"></i>relative Häufigkeit</span><span><i class="dash" style="border-color:var(--accent2)"></i>Wahrscheinlichkeit</span><span><i class="band"></i>95 %-Bereich</span></span>
+        </h3>
+        <canvas id="conv"></canvas>
+        <div class="hint" id="convhint"></div>
+      </section>
+      <section class="card">
+        <h3>Kennzahlen</h3>
+        <div id="stats"></div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script>
+/* ============ Hilfsfunktionen ============ */
+const rnd=Math.random, ri=n=>Math.floor(rnd()*n);
+const nf=(x,d=0)=>x.toLocaleString('de-DE',{minimumFractionDigits:d,maximumFractionDigits:d});
+function fp(x,d=1){
+  if(x==null||isNaN(x)) return '–';
+  if(x===0) return '0 %';
+  if(x<1e-5) return '1 : '+nf(1/x,0);
+  if(x<0.001) return nf(x*100,4)+' %';
+  if(x<0.01) return nf(x*100,2)+' %';
+  return nf(x*100,d)+' %';
+}
+const C=(n,k)=>{ if(k<0||k>n) return 0; k=Math.min(k,n-k); let r=1; for(let i=1;i<=k;i++) r=r*(n-k+i)/i; return r; };
+const binom=(n,k,p)=>C(n,k)*Math.pow(p,k)*Math.pow(1-p,n-k);
+const hyper=(N,K,n,k)=>{ const d=C(N,n); return d===0?0:C(K,k)*C(N-K,n-k)/d; };
+const PAL=['#2f5d62','#b58a45','#9a5b55','#5b7a8c','#7d8f5c','#8a6a99','#c0794e','#4f8a7b','#a39157','#6b6f8c'];
+const RED='#a65d57', BLUE='#5b7a8c';
+const minus=v=>v<0?'−'+Math.abs(v):String(v);
+
+/* ============ Experimente ============ */
+function dieSvg(x,y,f,s){
+  let g=`<g transform="translate(${x},${y})"><rect class="die" width="72" height="72" rx="14" stroke-width="1.5"/>`;
+  if(s===6){
+    const P={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]}[f];
+    g+=P.map(i=>`<circle class="pip" cx="${18+(i%3)*18}" cy="${18+Math.floor(i/3)*18}" r="5.6"/>`).join('');
+  } else {
+    g+=`<text class="t-ink" x="36" y="${f>=10?47:48}" text-anchor="middle" font-family="Georgia,serif" font-size="${f>=10?26:30}">${f}</text>`;
+  }
+  return g+'</g>';
+}
+const SUITS=['♠','♥','♦','♣'];
+const ORDER=[0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26];
+const REDS=new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
+const urnN=p=>{const T=p.r+p.b; return T===0?0:(p.m==='ohne'?Math.min(p.n,T):p.n);};
+const cardRanks=d=>d===32?['7','8','9','10','B','D','K','A']:['2','3','4','5','6','7','8','9','10','B','D','K','A'];
+const cardK=p=>p.t==='herz'?p.d/4:p.t==='ass'?4:12;
+const cardIs=(c,p)=>{const nr=p.d/4,s=c%4,r=Math.floor(c/4); return p.t==='herz'?s===1:p.t==='ass'?r===nr-1:(r>=nr-4&&r<=nr-2);};
+const wheelW=p=>Array.from({length:p.m},(_,i)=>p.w==='gleich'?1:i+1);
+const PIN=140; /* Anzahl Punkte im Pi-Experiment */
+
+const EXPS=[
+/* ---------- Grundlagen ---------- */
+{id:'muenze',grp:'Grundlagen',name:'Münzwurf',axis:'Ergebnis des Wurfs',numeric:false,
+ desc:'Ein Wurf, zwei mögliche Ausgänge. Bei einer fairen Münze liegt die Wahrscheinlichkeit für Kopf bei 50 %. Mit wachsender Zahl der Würfe nähert sich die relative Häufigkeit diesem Wert an.',
+ params:[{key:'p',label:'Wahrscheinlichkeit für Kopf',type:'range',min:.05,max:.95,step:.05,def:.5,fmt:v=>nf(v*100,0)+' %'}],
+ outs:p=>[{k:'Kopf',p:p.p,v:1},{k:'Zahl',p:1-p.p,v:0}],
+ trial:p=>{const h=rnd()<p.p; return {i:h?0:1,v:h?1:0,d:h};},
+ stage:(p,l,st,an)=>l?`<div class="coin ${l.d?'':'t'} ${an?'anim':''}">${l.d?'Kopf':'Zahl'}</div>`:null},
+
+{id:'wuerfel',grp:'Grundlagen',name:'Würfel',axis:'Augensumme',numeric:true,
+ desc:'Ein oder mehrere Würfel werden gleichzeitig geworfen, betrachtet wird die Augensumme. Schon bei zwei Würfeln entsteht aus der Gleichverteilung eine dreieckige Verteilung, bei mehr Würfeln eine glockenförmige.',
+ params:[{key:'k',label:'Anzahl der Würfel',type:'range',min:1,max:6,step:1,def:1},
+         {key:'s',label:'Seiten pro Würfel',type:'select',opts:[[4,'Tetraeder (4)'],[6,'Würfel (6)'],[8,'Oktaeder (8)'],[10,'Zehnflächner (10)'],[12,'Dodekaeder (12)'],[20,'Ikosaeder (20)']],def:6}],
+ outs:p=>{let a=[1]; for(let j=0;j<p.k;j++){const b=new Array(a.length+p.s-1).fill(0); a.forEach((x,i)=>{for(let f=1;f<=p.s;f++)b[i+f-1]+=x/p.s;}); a=b;} return a.map((q,i)=>({k:String(i+p.k),p:q,v:i+p.k}));},
+ trial:(p,st,vis)=>{let t=0,d=vis?[]:null; for(let j=0;j<p.k;j++){const f=1+ri(p.s); t+=f; if(vis)d.push(f);} return {i:t-p.k,v:t,d};},
+ stage:(p,l)=>{ if(!l) return null; const k=p.k; let g=l.d.map((f,i)=>dieSvg(i*84,0,f,p.s)).join('');
+   return `<svg viewBox="0 0 ${k*84-12} 72" style="width:min(100%,${k*92}px)">${g}</svg>`+(k>1?`<div class="cap">Augensumme ${l.v}</div>`:'');}},
+
+{id:'urne',grp:'Grundlagen',name:'Urnenmodell',axis:'Anzahl roter Kugeln in der Stichprobe',numeric:true,
+ desc:'Aus einer Urne mit roten und blauen Kugeln wird eine Stichprobe gezogen – mit oder ohne Zurücklegen. Mit Zurücklegen ergibt sich eine Binomialverteilung, ohne Zurücklegen eine hypergeometrische Verteilung.',
+ params:[{key:'r',label:'Rote Kugeln',type:'range',min:0,max:15,step:1,def:3},
+         {key:'b',label:'Blaue Kugeln',type:'range',min:0,max:15,step:1,def:5},
+         {key:'n',label:'Anzahl der Ziehungen',type:'range',min:1,max:6,step:1,def:3},
+         {key:'m',label:'Ziehungsart',type:'select',opts:[['ohne','ohne Zurücklegen'],['mit','mit Zurücklegen']],def:'ohne'}],
+ init:p=>{const T=p.r+p.b,pool=new Uint8Array(T); for(let i=0;i<p.r;i++)pool[i]=1; return {pool};},
+ outs:p=>{const T=p.r+p.b,n=urnN(p),a=[]; for(let k=0;k<=n;k++){const q=T===0?(k===0?1:0):(p.m==='ohne'?hyper(T,p.r,n,k):binom(n,k,p.r/T)); a.push({k:String(k),p:q,v:k});} return a;},
+ trial:(p,st,vis)=>{const T=p.r+p.b,n=urnN(p); if(T===0) return {i:0,v:0,d:[]}; let k=0,d=vis?[]:null;
+   if(p.m==='ohne'){const pl=st.pool; for(let j=0;j<n;j++){const s=j+ri(T-j),t=pl[j]; pl[j]=pl[s]; pl[s]=t; k+=pl[j]; if(vis)d.push(pl[j]);}}
+   else for(let j=0;j<n;j++){const red=ri(T)<p.r?1:0; k+=red; if(vis)d.push(red);}
+   return {i:k,v:k,d};},
+ stage:(p,l)=>{const T=p.r+p.b; if(!T) return null; const cols=Math.min(7,Math.max(3,Math.ceil(Math.sqrt(T*1.4)))),rows=Math.ceil(T/cols),bs=26,uw=cols*bs+20,uh=rows*bs+20,ux=(360-uw)/2;
+   let balls=''; for(let i=0;i<T;i++){const c=i%cols,r=Math.floor(i/cols); balls+=`<circle cx="${ux+10+c*bs+bs/2}" cy="${14+uh-10-(r+.5)*bs}" r="10.5" fill="${i<p.r?RED:BLUE}"/>`;}
+   const y0=14+uh+40; let samp='';
+   if(l){const n=l.d.length; l.d.forEach((c,i)=>{samp+=`<circle cx="${180+(i-(n-1)/2)*40}" cy="${y0}" r="15" fill="${c?RED:BLUE}"/>`;});}
+   return `<svg viewBox="0 0 360 ${y0+30}"><path d="M${ux} 14V${14+uh-16}a16 16 0 0 0 16 16H${ux+uw-16}a16 16 0 0 0 16-16V14" class="ln" stroke-width="2"/>${balls}${l?samp:''}</svg>`+(l?`<div class="cap">${l.v} rote Kugel${l.v===1?'':'n'} in der Stichprobe</div>`:'');}},
+
+{id:'karten',grp:'Grundlagen',name:'Kartenziehen',axis:'Anzahl gesuchter Karten in der Hand',numeric:true,
+ desc:'Aus einem gut gemischten Kartenspiel werden Karten ohne Zurücklegen gezogen. Gezählt wird, wie viele davon zur gesuchten Gruppe gehören – ein typisches hypergeometrisches Experiment.',
+ params:[{key:'d',label:'Kartenspiel',type:'select',opts:[[32,'Skat (32 Karten)'],[52,'Poker (52 Karten)']],def:32},
+         {key:'n',label:'Gezogene Karten',type:'range',min:1,max:8,step:1,def:5},
+         {key:'t',label:'Gesuchte Karten',type:'select',opts:[['herz','Herz'],['ass','Ass'],['bild','Bildkarte (B, D, K)']],def:'herz'}],
+ outs:p=>{const K=cardK(p),a=[]; for(let k=0;k<=Math.min(p.n,K);k++)a.push({k:String(k),p:hyper(p.d,K,p.n,k),v:k}); return a;},
+ trial:p=>{const a=[]; while(a.length<p.n){const c=ri(p.d); if(!a.includes(c))a.push(c);} let k=0; for(const c of a) if(cardIs(c,p))k++; return {i:k,v:k,d:a};},
+ stage:(p,l)=>{ if(!l) return null; const R=cardRanks(p.d);
+   return `<div class="cards">`+l.d.map(c=>{const s=c%4,hit=cardIs(c,p); return `<div class="pc ${s===1||s===2?'red':''} ${hit?'hit':''}"><span>${R[Math.floor(c/4)]}</span><small>${SUITS[s]}</small></div>`;}).join('')+`</div><div class="cap">${l.v} von ${p.n} Karten gesucht</div>`;}},
+
+{id:'rad',grp:'Grundlagen',name:'Glücksrad',axis:'Getroffenes Feld',numeric:false,
+ desc:'Ein Rad mit mehreren Feldern wird gedreht. Bei gleich großen Feldern ist jedes gleich wahrscheinlich; bei unterschiedlich großen Feldern entscheidet der Anteil am Vollwinkel.',
+ params:[{key:'m',label:'Anzahl der Felder',type:'range',min:2,max:10,step:1,def:5},
+         {key:'w',label:'Größe der Felder',type:'select',opts:[['gleich','alle gleich groß'],['steigend','Verhältnis 1 : 2 : 3 : …']],def:'gleich'}],
+ init:p=>{const w=wheelW(p),s=w.reduce((a,b)=>a+b,0); let acc=0; const b=w.map(x=>acc+=x/s*360); b[b.length-1]=360; return {b};},
+ outs:p=>{const w=wheelW(p),s=w.reduce((a,b)=>a+b,0); return w.map((x,i)=>({k:String(i+1),p:x/s,v:i+1}));},
+ trial:(p,st)=>{const t=rnd()*360; let i=0; while(i<st.b.length-1&&t>=st.b[i])i++; return {i,v:i+1,d:t};},
+ stage:(p,l,st,an)=>{const b=st.b,R=130,pt=(t,r)=>[150+r*Math.sin(t*Math.PI/180),150-r*Math.cos(t*Math.PI/180)]; let s='',a0=0;
+   b.forEach((a1,i)=>{const [x0,y0]=pt(a0,R),[x1,y1]=pt(a1,R),[tx,ty]=pt((a0+a1)/2,R*.68);
+     s+=`<path d="M150 150L${x0.toFixed(2)} ${y0.toFixed(2)}A${R} ${R} 0 ${a1-a0>180?1:0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}Z" fill="${PAL[i%PAL.length]}" stroke="var(--card)" stroke-width="2.5"/><text x="${tx.toFixed(1)}" y="${(ty+6).toFixed(1)}" text-anchor="middle" font-size="18" fill="#fff" font-family="Georgia,serif">${i+1}</text>`; a0=a1;});
+   const A=l?1080-l.d:0;
+   return `<svg viewBox="0 0 300 300" class="wheelsvg"><g class="${an&&l?'spin':''}" style="transform:rotate(${A}deg);transform-origin:150px 150px">${s}</g><circle cx="150" cy="150" r="9" fill="var(--card)" stroke="var(--line)"/><path d="M150 26L139 3H161Z" fill="var(--accent2)"/></svg>`+(l?`<div class="cap">Feld ${l.v}</div>`:'');}},
+
+{id:'roulette',grp:'Grundlagen',name:'Roulette',axis:'Ergebnis der Kugel',numeric:p=>p.mode==='zahl',
+ desc:'Ein Kessel mit 37 Fächern (0 bis 36, europäisches Roulette). Je nach Auswertung zählt die Farbe, das Dutzend oder die Einzelzahl. Die Null verschafft der Bank ihren kleinen, aber stetigen Vorteil.',
+ params:[{key:'mode',label:'Auswertung',type:'select',opts:[['farbe','Farbe'],['dutzend','Dutzend'],['zahl','Einzelzahl']],def:'farbe'}],
+ outs:p=>p.mode==='farbe'?[{k:'Rot',p:18/37,v:0},{k:'Schwarz',p:18/37,v:0},{k:'Grün (0)',p:1/37,v:0}]
+        :p.mode==='dutzend'?[{k:'Null',p:1/37,v:0},{k:'1–12',p:12/37,v:0},{k:'13–24',p:12/37,v:0},{k:'25–36',p:12/37,v:0}]
+        :Array.from({length:37},(_,i)=>({k:String(i),p:1/37,v:i})),
+ trial:p=>{const x=ri(37); const i=p.mode==='farbe'?(x===0?2:REDS.has(x)?0:1):p.mode==='dutzend'?(x===0?0:Math.ceil(x/12)):x; return {i,v:x,d:x};},
+ stage:(p,l)=>{const N=37,pt=(t,r)=>[150+r*Math.sin(t*Math.PI/180),150-r*Math.cos(t*Math.PI/180)]; let s='',hi='';
+   for(let q=0;q<N;q++){const n=ORDER[q],a0=q/N*360,a1=(q+1)/N*360,mid=(a0+a1)/2,[ox0,oy0]=pt(a0,132),[ox1,oy1]=pt(a1,132),[ix0,iy0]=pt(a0,86),[ix1,iy1]=pt(a1,86);
+     const fill=n===0?'#4f8a7b':REDS.has(n)?'#a65d57':'#2f3a3c', win=l&&l.d===n;
+     const d=`M${ox0.toFixed(2)} ${oy0.toFixed(2)}A132 132 0 0 1 ${ox1.toFixed(2)} ${oy1.toFixed(2)}L${ix1.toFixed(2)} ${iy1.toFixed(2)}A86 86 0 0 0 ${ix0.toFixed(2)} ${iy0.toFixed(2)}Z`;
+     const txt=`<text transform="rotate(${mid.toFixed(2)} 150 150)" x="150" y="${150-109+4}" text-anchor="middle" font-size="10" fill="#fff" font-family="Georgia,serif">${n}</text>`;
+     if(win) hi=`<path d="${d}" fill="${fill}" stroke="var(--accent2)" stroke-width="3.5"/>`+txt; else s+=`<path d="${d}" fill="${fill}" stroke="var(--card)" stroke-width="1.5"/>`+txt;}
+   const col=l?(l.d===0?'#4f8a7b':REDS.has(l.d)?'#a65d57':'var(--ink)'):'var(--muted)';
+   return `<svg viewBox="0 0 300 300" class="wheelsvg">${s}${hi}<circle cx="150" cy="150" r="70" fill="var(--card)" stroke="var(--line)"/><text x="150" y="${l?170:166}" text-anchor="middle" font-size="${l?54:30}" font-family="Georgia,serif" fill="${col}">${l?l.d:'–'}</text></svg>`;}},
+
+/* ---------- Verteilungen ---------- */
+{id:'bernoulli',grp:'Verteilungen',name:'Bernoulli-Kette',axis:'Anzahl der Treffer',numeric:true,
+ desc:'Ein Zufallsversuch mit nur zwei Ausgängen (Treffer / Niete) wird mehrmals unabhängig wiederholt. Die Trefferzahl ist binomialverteilt.',
+ params:[{key:'n',label:'Länge der Kette',type:'range',min:1,max:20,step:1,def:10},
+         {key:'p',label:'Trefferwahrscheinlichkeit',type:'range',min:.05,max:.95,step:.05,def:.3,fmt:v=>nf(v*100,0)+' %'}],
+ outs:p=>Array.from({length:p.n+1},(_,k)=>({k:String(k),p:binom(p.n,k,p.p),v:k})),
+ trial:(p,st,vis)=>{let k=0,d=vis?[]:null; for(let j=0;j<p.n;j++){const h=rnd()<p.p?1:0; k+=h; if(vis)d.push(h);} return {i:k,v:k,d};},
+ stage:(p,l)=>{ if(!l) return null; const n=p.n,per=10,rows=Math.ceil(n/per),sp=34; let s='';
+   l.d.forEach((h,i)=>{const x=(i%per)*sp+18,y=Math.floor(i/per)*sp+18; s+=h?`<circle cx="${x}" cy="${y}" r="12" fill="var(--accent)"/>`:`<circle cx="${x}" cy="${y}" r="11" fill="none" stroke="var(--muted)" stroke-width="1.6"/>`;});
+   return `<svg viewBox="0 0 ${Math.min(n,per)*sp+2} ${rows*sp+2}" style="width:${Math.min(n,per)*40}px">${s}</svg><div class="cap">${l.v} Treffer in ${n} Versuchen</div>`;}},
+
+{id:'galton',grp:'Verteilungen',name:'Galtonbrett',axis:'Fach, in dem die Kugel landet',numeric:true,
+ desc:'Eine Kugel fällt durch Reihen von Nägeln und wird an jedem Nagel zufällig nach links oder rechts gelenkt. Die Fachverteilung ist binomial – bei vielen Kugeln entsteht die Glockenkurve.',
+ params:[{key:'rows',label:'Nagelreihen',type:'range',min:4,max:16,step:1,def:10},
+         {key:'p',label:'Wahrscheinlichkeit für „rechts“',type:'range',min:.1,max:.9,step:.05,def:.5,fmt:v=>nf(v*100,0)+' %'}],
+ outs:p=>Array.from({length:p.rows+1},(_,k)=>({k:String(k),p:binom(p.rows,k,p.p),v:k})),
+ trial:(p,st,vis)=>{let j=0,pos=vis?[]:null; for(let r=0;r<p.rows;r++){ if(vis)pos.push(j); if(rnd()<p.p)j++; } return {i:j,v:j,d:{pos,j}};},
+ stage:(p,l)=>{const n=p.rows,dx=Math.min(24,330/(n+1)),dy=Math.min(16,200/n),cx=180,top=34,px=(r,j)=>cx+(j-r/2)*dx,py=r=>top+r*dy,by=top+n*dy+4; let s='';
+   for(let r=0;r<n;r++)for(let j=0;j<=r;j++)s+=`<circle class="peg" cx="${px(r,j).toFixed(1)}" cy="${py(r).toFixed(1)}" r="2.6"/>`;
+   for(let j=0;j<=n+1;j++){const x=cx+(j-.5-n/2)*dx; s+=`<line class="ln" x1="${x.toFixed(1)}" y1="${by}" x2="${x.toFixed(1)}" y2="${by+38}"/>`;}
+   s+=`<line class="ln" x1="${(cx-(n/2+.5)*dx).toFixed(1)}" y1="${by+38}" x2="${(cx+(n/2+.5)*dx).toFixed(1)}" y2="${by+38}"/>`;
+   if(l){const pts=[[cx,top-16]]; l.d.pos.forEach((j,r)=>pts.push([px(r,j),py(r)])); pts.push([cx+(l.d.j-n/2)*dx,by+24]);
+     s+=`<polyline points="${pts.map(q=>q[0].toFixed(1)+','+q[1].toFixed(1)).join(' ')}" fill="none" stroke="var(--accent2)" stroke-width="2" stroke-linejoin="round" opacity=".9"/><circle cx="${pts[pts.length-1][0].toFixed(1)}" cy="${pts[pts.length-1][1].toFixed(1)}" r="6" fill="var(--accent)"/>`;}
+   return `<svg viewBox="0 0 360 ${by+46}" style="width:min(100%,380px)">${s}</svg>`+(l?`<div class="cap">Fach ${l.v}</div>`:'');}},
+
+{id:'warten',grp:'Verteilungen',name:'Wartezeit bis zum Erfolg',axis:'Anzahl der Versuche bis zum ersten Erfolg',numeric:true,
+ desc:'Wie lange muss man warten, bis ein Ereignis zum ersten Mal eintritt – etwa die erste Sechs beim Würfeln? Die Wartezeit ist geometrisch verteilt; ihr Erwartungswert ist der Kehrwert der Erfolgswahrscheinlichkeit.',
+ params:[{key:'q',label:'Erfolgswahrscheinlichkeit pro Versuch',type:'select',opts:[[2,'1 zu 2 (Münze: Kopf)'],[3,'1 zu 3'],[6,'1 zu 6 (Würfel: Sechs)'],[10,'1 zu 10'],[20,'1 zu 20']],def:6}],
+ outs:p=>{const q=1/p.q,cap=Math.min(30,Math.max(8,Math.ceil(3.2*p.q))),a=[]; for(let i=1;i<cap;i++)a.push({k:String(i),p:q*Math.pow(1-q,i-1),v:i}); a.push({k:'≥'+cap,p:Math.pow(1-q,cap-1),v:cap}); return a;},
+ theory:p=>{const q=1/p.q; return {mean:1/q,sd:Math.sqrt(1-q)/q};},
+ trial:p=>{const q=1/p.q,cap=Math.min(30,Math.max(8,Math.ceil(3.2*p.q))); const t=Math.floor(Math.log(1-rnd())/Math.log(1-q))+1; return {i:Math.min(t,cap)-1,v:t,d:t};},
+ stage:(p,l)=>{ if(!l) return null; const t=l.d,show=Math.min(t,36); let s=''; for(let i=0;i<show;i++){const x=(i%12)*26+16,y=Math.floor(i/12)*28+16; s+= i===t-1?`<circle cx="${x}" cy="${y}" r="10" fill="var(--accent2)"/>`:`<circle cx="${x}" cy="${y}" r="9" fill="none" stroke="var(--muted)" stroke-width="1.5"/>`;}
+   return `<svg viewBox="0 0 ${Math.min(show,12)*26+6} ${Math.ceil(show/12)*28+4}" style="width:${Math.min(show,12)*34}px">${s}</svg><div class="cap">Erster Erfolg im ${t}. Versuch${t>36?'<small>(Darstellung gekürzt)</small>':''}</div>`;}},
+
+{id:'irrfahrt',grp:'Verteilungen',name:'Irrfahrt',axis:'Endposition',numeric:true,
+ desc:'Ein Teilchen startet bei 0 und macht in jedem Schritt mit gleicher Wahrscheinlichkeit einen Schritt nach rechts oder links. Betrachtet wird die Position nach allen Schritten.',
+ params:[{key:'n',label:'Anzahl der Schritte',type:'range',min:4,max:40,step:1,def:16}],
+ outs:p=>Array.from({length:p.n+1},(_,k)=>({k:minus(2*k-p.n),p:binom(p.n,k,.5),v:2*k-p.n})),
+ trial:(p,st,vis)=>{let k=0,pos=0,path=vis?[0]:null; for(let j=0;j<p.n;j++){ if(rnd()<.5){k++;pos++;}else pos--; if(vis)path.push(pos);} return {i:k,v:2*k-p.n,d:path};},
+ stage:(p,l)=>{ if(!l) return null; const n=p.n,mx=Math.max(4,...l.d.map(Math.abs)),W=400,H=190,sx=(W-40)/n,sy=78/mx,pts=l.d.map((v,i)=>`${(20+i*sx).toFixed(1)},${(H/2-v*sy).toFixed(1)}`);
+   return `<svg viewBox="0 0 ${W} ${H}" style="width:min(100%,430px)"><line class="ln" x1="20" y1="${H/2}" x2="${W-20}" y2="${H/2}" stroke-dasharray="4 4"/><polyline points="${pts.join(' ')}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/><circle cx="${(20+n*sx).toFixed(1)}" cy="${(H/2-l.d[n]*sy).toFixed(1)}" r="5.5" fill="var(--accent2)"/><circle cx="20" cy="${H/2}" r="3.5" fill="var(--muted)"/></svg><div class="cap">Endposition ${minus(l.v)}</div>`;}},
+
+/* ---------- Klassiker ---------- */
+{id:'ziegen',grp:'Klassiker',name:'Ziegenproblem',axis:'Ausgang des Spiels',numeric:false,
+ desc:'Hinter einer Tür steht ein Auto, hinter den übrigen Ziegen. Nach deiner Wahl öffnet der Moderator Türen mit Ziegen. Wechseln lohnt sich: Es gewinnt mit der Wahrscheinlichkeit (n−1)/n, Bleiben nur mit 1/n.',
+ params:[{key:'n',label:'Anzahl der Türen',type:'range',min:3,max:8,step:1,def:3},
+         {key:'s',label:'Strategie',type:'select',opts:[['wechseln','Wechseln'],['bleiben','Bleiben']],def:'wechseln'}],
+ outs:p=>{const q=p.s==='bleiben'?1/p.n:(p.n-1)/p.n; return [{k:'Auto gewonnen',p:q,v:1},{k:'Ziege',p:1-q,v:0}];},
+ trial:(p,st,vis)=>{const n=p.n,car=ri(n),pick=ri(n),other=pick===car?(pick+1+ri(n-1))%n:car,fin=p.s==='wechseln'?other:pick,win=fin===car; return {i:win?0:1,v:win?1:0,d:{car,pick,other,fin}};},
+ stage:(p,l)=>{ if(!l) return null; const n=p.n,w=62,gap=14,H=170,{car,pick,other,fin}=l.d; let s='';
+   for(let i=0;i<n;i++){const x=i*(w+gap)+4,host=i!==pick&&i!==other; s+=`<g opacity="${host?.5:1}"><rect class="door" x="${x}" y="8" width="${w}" height="104" rx="8" stroke-width="${i===fin?3:1.2}" ${i===fin?'style="stroke:var(--accent)"':''}/>`;
+     s+= i===car?`<g transform="translate(${x+5},46)" fill="var(--accent2)"><rect x="3" y="14" width="46" height="15" rx="5"/><rect x="13" y="4" width="26" height="13" rx="4"/><circle cx="14" cy="31" r="5.5" fill="var(--ink)"/><circle cx="38" cy="31" r="5.5" fill="var(--ink)"/></g>`
+       :`<text class="t-mut" x="${x+w/2}" y="66" text-anchor="middle" font-size="13" font-style="italic" font-family="Georgia,serif">Ziege</text>`;
+     s+=`</g><text class="t-mut" x="${x+w/2}" y="132" text-anchor="middle" font-size="11">${i===pick?'1. Wahl':''}</text><text class="t-ink" x="${x+w/2}" y="148" text-anchor="middle" font-size="11" font-weight="700">${i===fin?'Endgültig':''}</text>`;}
+   return `<svg viewBox="0 0 ${n*(w+gap)-6} ${H}" style="width:min(100%,${n*84}px)">${s}</svg><div class="cap">${l.v?'Das Auto war hinter der gewählten Tür.':'Die gewählte Tür verbarg eine Ziege.'}<small>blasse Türen: vom Moderator geöffnet</small></div>`;}},
+
+{id:'geburtstag',grp:'Klassiker',name:'Geburtstagsparadoxon',axis:'Gleicher Geburtstag in der Gruppe?',numeric:false,
+ desc:'Wie wahrscheinlich ist es, dass in einer Gruppe mindestens zwei Personen am selben Tag Geburtstag haben? Schon bei 23 Personen ist es mehr als 50 % – viel höher, als die Intuition vermuten lässt.',
+ params:[{key:'n',label:'Anzahl der Personen',type:'range',min:2,max:60,step:1,def:23}],
+ init:()=>({seen:new Int32Array(365),gen:0}),
+ outs:p=>{let q=1; for(let i=0;i<p.n;i++)q*=(365-i)/365; return [{k:'Mindestens zwei gleich',p:1-q,v:1},{k:'Alle verschieden',p:q,v:0}];},
+ trial:(p,st,vis)=>{st.gen++; let dup=false,days=vis?[]:null; for(let j=0;j<p.n;j++){const d=ri(365); if(st.seen[d]===st.gen)dup=true; st.seen[d]=st.gen; if(vis)days.push(d);} return {i:dup?0:1,v:dup?1:0,d:days};},
+ stage:(p,l)=>{ if(!l) return null; const cx=140,pt=(d,r)=>{const a=d/365*2*Math.PI; return [cx+r*Math.sin(a),cx-r*Math.cos(a)];}; let ticks='';
+   for(let d=0;d<365;d+=5){const [x0,y0]=pt(d,102),[x1,y1]=pt(d,107); ticks+=`M${x0.toFixed(1)} ${y0.toFixed(1)}L${x1.toFixed(1)} ${y1.toFixed(1)}`;}
+   const M=['J','F','M','A','M','J','J','A','S','O','N','D'],mid=[15,45,74,105,135,166,196,227,258,288,319,349]; let lab=M.map((m,i)=>{const [x,y]=pt(mid[i],122); return `<text class="t-mut" x="${x.toFixed(1)}" y="${(y+4).toFixed(1)}" text-anchor="middle" font-size="11">${m}</text>`;}).join('');
+   const cnt={}; l.d.forEach(d=>cnt[d]=(cnt[d]||0)+1); let dots='';
+   Object.keys(cnt).forEach(k=>{const [x,y]=pt(+k,90); dots+= cnt[k]>1?`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="6.5" fill="var(--accent3)" stroke="var(--card)" stroke-width="1.5"/>`:`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.6" fill="var(--accent)"/>`;});
+   return `<svg viewBox="0 0 280 280" style="width:260px"><path d="${ticks}" class="ln"/>${lab}${dots}<text class="t-ink" x="140" y="136" text-anchor="middle" font-size="30" font-family="Georgia,serif">${p.n}</text><text class="t-mut" x="140" y="156" text-anchor="middle" font-size="12">Personen</text></svg><div class="cap">${l.v?'Mindestens zwei haben am selben Tag Geburtstag.':'Alle Geburtstage sind verschieden.'}</div>`;}},
+
+{id:'lotto',grp:'Klassiker',name:'Lotto',axis:'Anzahl richtiger Zahlen',numeric:true,
+ desc:'„k aus N“: Es werden k verschiedene Zahlen aus 1 bis N gezogen. Dein Tipp sind die Zahlen 1 bis k. Wie viele Richtige gibt es? Hypergeometrisch verteilt – der Hauptgewinn ist extrem selten.',
+ params:[{key:'N',label:'Zahlen im Topf (N)',type:'range',min:10,max:60,step:1,def:49},
+         {key:'k',label:'Gezogene Zahlen (k)',type:'range',min:1,max:8,step:1,def:6}],
+ outs:p=>Array.from({length:p.k+1},(_,j)=>({k:String(j),p:hyper(p.N,p.k,p.k,j),v:j})),
+ trial:p=>{const a=[]; while(a.length<p.k){const c=1+ri(p.N); if(!a.includes(c))a.push(c);} let h=0; for(const c of a) if(c<=p.k)h++; return {i:h,v:h,d:a};},
+ stage:(p,l)=>{ const N=p.N,rows=Math.ceil(N/10); let s=''; const dr=l?new Set(l.d):new Set();
+   for(let c=1;c<=N;c++){const x=18+((c-1)%10)*33,y=18+Math.floor((c-1)/10)*34,tip=c<=p.k,d=dr.has(c),hit=tip&&d;
+     s+=`<circle cx="${x}" cy="${y}" r="13" fill="${hit?'var(--accent2)':d?'var(--accent)':'none'}" stroke="${tip?'var(--accent2)':'var(--line)'}" stroke-width="${tip?2:1.2}"/><text x="${x}" y="${y+4}" text-anchor="middle" font-size="11" fill="${d?'#fff':'var(--muted)'}">${c}</text>`;}
+   return `<svg viewBox="0 0 340 ${rows*34+4}" style="width:min(100%,380px)">${s}</svg>`+(l?`<div class="cap">${l.v} Richtige<small>Tipp: 1 bis ${p.k} (umrandet)</small></div>`:'<div class="cap"><small>Tipp: 1 bis '+p.k+' (umrandet)</small></div>');}},
+
+{id:'pi',grp:'Klassiker',name:'Zufallspunkte & π',axis:'Lage des Punktes im Einheitsquadrat',numeric:false,
+ desc:'Zufällige Punkte im Einheitsquadrat: Der Anteil im Viertelkreis (x² + y² ≤ 1) nähert sich π/4. Aus der relativen Häufigkeit lässt sich π schätzen – ein klassisches Monte-Carlo-Verfahren.',
+ params:[],
+ init:()=>({x:new Float32Array(PIN*30),y:new Float32Array(PIN*30),k:new Uint8Array(PIN*30),c:0,h:0}),
+ outs:()=>[{k:'im Viertelkreis',p:Math.PI/4,v:1},{k:'außerhalb',p:1-Math.PI/4,v:0}],
+ extra:(S)=>S.n?[{label:'Näherung für π  (4 · Anteil)',obs:nf(4*S.counts[0]/S.n,4),th:nf(Math.PI,4)}]:[],
+ trial:(p,st)=>{const x=rnd(),y=rnd(),ins=x*x+y*y<=1?1:0,L=st.x.length; st.x[st.h]=x; st.y[st.h]=y; st.k[st.h]=ins; st.h=(st.h+1)%L; st.c=Math.min(st.c+1,L); return {i:ins?0:1,v:ins,d:null};},
+ stage:(p,l,st)=>{ let a='',b=''; for(let i=0;i<st.c;i++){const q=`M${(10+st.x[i]*280).toFixed(1)} ${(290-st.y[i]*280).toFixed(1)}h0`; if(st.k[i])a+=q; else b+=q;}
+   return `<svg viewBox="0 0 300 300" style="width:min(100%,320px)"><rect x="10" y="10" width="280" height="280" fill="none" class="ln" stroke-width="1.5"/><path d="M10 10A280 280 0 0 1 290 290" fill="none" stroke="var(--accent2)" stroke-width="2"/><path d="${b}" stroke="var(--muted)" stroke-width="3.4" stroke-linecap="round" opacity=".7"/><path d="${a}" stroke="var(--accent)" stroke-width="3.4" stroke-linecap="round" opacity=".85"/></svg>`+(st.c?`<div class="cap"><small>letzte ${nf(st.c)} Punkte dargestellt</small></div>`:'<div class="cap"><small>Noch keine Punkte</small></div>');}}
+];
+
+/* ============ Zustand & Steuerung ============ */
+const MAXN=1000000, hist=new Uint8Array(MAXN);
+const S={rel:true,speed:1,pending:0,raf:null,play:false,timer:null,hover:-1,theme:'auto',anim:false};
+const SPEEDS=[{l:'ruhig (animiert)',ms:1000,k:1,anim:true},{l:'zügig',ms:220,k:1,anim:false},{l:'schnell',ms:16,k:100,anim:false}];
+const $=id=>document.getElementById(id);
+
+function isNum(){const n=S.exp.numeric; return typeof n==='function'?n(S.p):n;}
+function loadExp(id){
+  const e=EXPS.find(x=>x.id===id); S.exp=e; S.p={}; e.params.forEach(pr=>S.p[pr.key]=pr.def);
+  $('eyebrow').textContent=e.grp; $('title').textContent=e.name; $('desc').textContent=e.desc;
+  document.querySelectorAll('.exp').forEach(b=>b.classList.toggle('on',b.dataset.id===id));
+  buildParams(); resetSim(); try{history.replaceState(null,'','#'+id);}catch(_){}
+}
+function resetSim(){
+  stopPlay(); S.pending=0; if(S.raf){cancelAnimationFrame(S.raf);S.raf=null;}
+  const e=S.exp; S.outs=e.outs(S.p); S.counts=new Array(S.outs.length).fill(0); S.n=0;S.sum=0;S.sumsq=0;S.last=null;
+  S.st=e.init?e.init(S.p):{};
+  let bi=0; S.outs.forEach((o,i)=>{ if(o.p>S.outs[bi].p) bi=i; }); S.focus=bi;
+  $('axis').textContent=e.axis; render(false);
+}
+function buildParams(){
+  const e=S.exp, box=$('params');
+  box.innerHTML=e.params.length?e.params.map(pr=>{
+    if(pr.type==='select') return `<label class="field"><span>${pr.label}</span><select data-k="${pr.key}">${pr.opts.map(o=>`<option value="${o[0]}" ${String(o[0])===String(S.p[pr.key])?'selected':''}>${o[1]}</option>`).join('')}</select></label>`;
+    return `<label class="field"><span>${pr.label}<b data-o="${pr.key}">${pr.fmt?pr.fmt(pr.def):pr.def}</b></span><input type="range" data-k="${pr.key}" min="${pr.min}" max="${pr.max}" step="${pr.step}" value="${pr.def}"></label>`;
+  }).join(''):'<p class="hint" style="margin:0 0 14px">Dieses Experiment hat keine Einstellungen.</p>';
+  box.querySelectorAll('[data-k]').forEach(el=>{
+    const ev=el.tagName==='SELECT'?'change':'input';
+    el.addEventListener(ev,()=>{
+      const pr=e.params.find(x=>x.key===el.dataset.k); let v=el.value; v=isNaN(Number(v))?v:Number(v); S.p[pr.key]=v;
+      const o=box.querySelector(`[data-o="${pr.key}"]`); if(o) o.textContent=pr.fmt?pr.fmt(v):v;
+      resetSim();
+    });
+  });
+}
+
+function runChunk(c){
+  const e=S.exp,p=S.p,st=S.st; let r;
+  for(let j=0;j<c;j++){ r=e.trial(p,st,j===c-1); S.counts[r.i]++; hist[S.n++]=r.i; S.sum+=r.v; S.sumsq+=r.v*r.v; }
+  S.last=r;
+}
+function go(c,anim){
+  c=Math.min(c,MAXN-S.n); if(c<=0) return;
+  if(c<=10){ runChunk(c); render(anim&&c===1); return; }
+  S.pending+=c; pump();
+}
+function pump(){
+  if(S.raf) return;
+  const step=()=>{ S.raf=null; const t0=performance.now();
+    while(S.pending>0&&S.n<MAXN){ const ch=Math.min(S.pending,500,MAXN-S.n); runChunk(ch); S.pending-=ch; if(performance.now()-t0>12) break; }
+    render(false);
+    if(S.pending>0&&S.n<MAXN) S.raf=requestAnimationFrame(step); else S.pending=0;
+  };
+  S.raf=requestAnimationFrame(step);
+}
+function setPlayBtn(){ $('play').textContent=S.play?'❚❚ Pause':'▶ Fortlaufend'; }
+function stopPlay(){ S.play=false; clearTimeout(S.timer); setPlayBtn(); }
+function togglePlay(){ if(S.play){stopPlay();return;} S.play=true; setPlayBtn(); loopPlay(); }
+function loopPlay(){
+  if(!S.play) return; if(S.n>=MAXN){stopPlay();return;}
+  const sp=SPEEDS[S.speed]; runChunk(Math.min(sp.k,MAXN-S.n)); render(sp.anim); S.timer=setTimeout(loopPlay,sp.ms);
+}
+
+/* ============ Darstellung ============ */
+function colors(){ const cs=getComputedStyle(document.documentElement),g=n=>cs.getPropertyValue(n).trim(); return {accent:g('--accent'),accent2:g('--accent2'),ink:g('--ink'),muted:g('--muted'),line:g('--line'),soft:g('--accent-soft'),card:g('--card')}; }
+function setup(cv){
+  const r=cv.getBoundingClientRect(),d=window.devicePixelRatio||1,w=Math.max(10,r.width),h=r.height;
+  if(cv.width!==Math.round(w*d)||cv.height!==Math.round(h*d)){cv.width=Math.round(w*d);cv.height=Math.round(h*d);}
+  const ctx=cv.getContext('2d'); ctx.setTransform(d,0,0,d,0,0); ctx.clearRect(0,0,w,h);
+  ctx.font='11.5px -apple-system,"Segoe UI",Roboto,Arial,sans-serif'; return {ctx,w,h};
+}
+function niceMax(v){ const e=Math.pow(10,Math.floor(Math.log10(v))),f=v/e; return (f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*e; }
+
+function render(anim){
+  const e=S.exp; let h=e.stage(S.p,S.last,S.st,anim); if(h==null) h='<div class="ph">Starte einen Versuch, um das Zufallsexperiment zu sehen.</div>';
+  $('stage').innerHTML=h;
+  if(S.n){ const lab=[]; for(let i=S.n-1;i>=Math.max(0,S.n-14);i--) lab.push(`<span class="pill">${S.outs[hist[i]].k}</span>`);
+    $('recent').innerHTML='<span>Zuletzt:</span>'+lab.join(''); } else $('recent').innerHTML='<span>Noch keine Versuche durchgeführt.</span>';
+  renderStats(); drawHist(); drawConv();
+}
+function theoryStats(){
+  const e=S.exp; if(e.theory) return e.theory(S.p);
+  let m=0,m2=0; S.outs.forEach(o=>{m+=o.p*o.v;m2+=o.p*o.v*o.v;}); return {mean:m,sd:Math.sqrt(Math.max(0,m2-m*m))};
+}
+function renderStats(){
+  const e=S.exp,o=S.outs[S.focus],n=S.n,cnt=S.counts[S.focus],rel=n?cnt/n:null; const rows=[];
+  rows.push(['Anzahl der Versuche',nf(n),'']);
+  rows.push([`»${o.k}« – Anzahl`,nf(cnt),nf(o.p*n,1)]);
+  rows.push(['relative Häufigkeit',n?fp(rel,2):'–',fp(o.p,2)]);
+  if(n){const dv=(rel-o.p)*100; rows.push(['Abweichung',(dv>=0?'+':'−')+nf(Math.abs(dv),2)+' Prozentp.','']);}
+  if(isNum()){ const t=theoryStats(); let mean=null,sd=null; if(n){mean=S.sum/n; sd=Math.sqrt(Math.max(0,S.sumsq/n-mean*mean));}
+    rows.push(['Mittelwert / Erwartungswert',n?nf(mean,3):'–',nf(t.mean,3)]);
+    rows.push(['Standardabweichung',n?nf(sd,3):'–',nf(t.sd,3)]); }
+  if(e.extra) e.extra(S).forEach(x=>rows.push([x.label,x.obs,x.th]));
+  if(n>=MAXN) rows.push(['Obergrenze von 1.000.000 Versuchen erreicht','','']);
+  $('stats').innerHTML=`<table><thead><tr><th></th><th>Beobachtet</th><th>Theorie</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r[0]}</td><td class="v">${r[1]}</td><td>${r[2]}</td></tr>`).join('')}</tbody></table>`;
+}
+
+function drawHist(){
+  const cv=$('hist'),{ctx,w,h}=setup(cv),c=colors(),o=S.outs,m=o.length,n=S.n,rel=S.rel;
+  const padL=54,padR=12,padT=14,padB=34,W=w-padL-padR,H=h-padT-padB;
+  const val=i=>rel?(n?S.counts[i]/n:0):S.counts[i], th=i=>rel?o[i].p:o[i].p*n;
+  let mx=0; for(let i=0;i<m;i++){mx=Math.max(mx,val(i),th(i));}
+  if(!rel) mx=Math.max(mx,5); if(mx<=0) mx=.5;
+  const ymax=niceMax(mx*1.12),steps=5;
+  ctx.textBaseline='middle'; ctx.strokeStyle=c.line; ctx.fillStyle=c.muted; ctx.lineWidth=1; ctx.textAlign='right';
+  for(let t=0;t<=steps;t++){ const v=ymax*t/steps,y=padT+H-H*t/steps; ctx.beginPath(); ctx.moveTo(padL,Math.round(y)+.5); ctx.lineTo(w-padR,Math.round(y)+.5); ctx.globalAlpha=t===0?1:.55; ctx.stroke(); ctx.globalAlpha=1;
+    ctx.fillText(rel?nf(v*100,ymax/steps*100<1?1:0)+' %':nf(v,0),padL-8,y); }
+  const bw=W/m,gap=Math.min(8,bw*.22),wd=Math.max(1,bw-gap);
+  S.hg={padL,bw,m,padT,H};
+  if(S.hover>=0&&S.hover<m){ ctx.fillStyle=c.soft; ctx.fillRect(padL+S.hover*bw,padT,bw,H); }
+  for(let i=0;i<m;i++){
+    const x=padL+i*bw+gap/2,bh=val(i)/ymax*H,y=padT+H-bh; if(bh<=0) continue;
+    const r=Math.min(5,wd/2,bh); ctx.beginPath(); ctx.moveTo(x,y+bh); ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r); ctx.lineTo(x+wd-r,y); ctx.arcTo(x+wd,y,x+wd,y+r,r); ctx.lineTo(x+wd,y+bh); ctx.closePath();
+    ctx.fillStyle=c.accent; ctx.globalAlpha=i===S.focus?1:.5; ctx.fill(); ctx.globalAlpha=1;
+  }
+  ctx.strokeStyle=c.accent2; ctx.lineWidth=2.4; ctx.lineCap='round';
+  if(m<=30){ for(let i=0;i<m;i++){const y=padT+H-th(i)/ymax*H,x=padL+i*bw+gap/2; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+wd,y); ctx.stroke();} }
+  else { ctx.lineWidth=2; ctx.beginPath(); for(let i=0;i<m;i++){const y=padT+H-th(i)/ymax*H,x=padL+(i+.5)*bw; i?ctx.lineTo(x,y):ctx.moveTo(x,y);} ctx.stroke(); }
+  ctx.fillStyle=c.muted; ctx.textAlign='center'; ctx.textBaseline='top';
+  const every=Math.max(1,Math.ceil(m/Math.max(1,Math.floor(W/(m>20?30:42)))));
+  for(let i=0;i<m;i+=every){ ctx.fillText(o[i].k,padL+(i+.5)*bw,padT+H+9); }
+  ctx.strokeStyle=c.muted; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(padL,padT+H+.5); ctx.lineTo(w-padR,padT+H+.5); ctx.stroke();
+}
+
+function drawConv(){
+  const cv=$('conv'),{ctx,w,h}=setup(cv),c=colors(),o=S.outs[S.focus],t=o.p,n=S.n;
+  const padL=48,padR=16,padT=14,padB=30,W=w-padL-padR,H=h-padT-padB;
+  const xmax=Math.max(10,n),lx=v=>padL+Math.log(Math.max(1,v))/Math.log(xmax)*W;
+  let lo=0,hi=1; if(t<=.5){hi=Math.min(1,Math.max(.1,4*t));} else {lo=1-Math.min(1,Math.max(.1,4*(1-t)));}
+  const ly=v=>padT+H-(v-lo)/(hi-lo)*H;
+  ctx.textBaseline='middle'; ctx.textAlign='right'; ctx.lineWidth=1;
+  for(let k=0;k<=4;k++){ const v=lo+(hi-lo)*k/4,y=ly(v); ctx.strokeStyle=c.line; ctx.globalAlpha=k===0?1:.55; ctx.beginPath(); ctx.moveTo(padL,Math.round(y)+.5); ctx.lineTo(w-padR,Math.round(y)+.5); ctx.stroke(); ctx.globalAlpha=1; ctx.fillStyle=c.muted; ctx.fillText(nf(v*100,(hi-lo)<.3?1:0)+' %',padL-8,y); }
+  ctx.textAlign='center'; ctx.textBaseline='top';
+  for(let e=0;Math.pow(10,e)<=xmax;e++){ const v=Math.pow(10,e),x=lx(v); ctx.strokeStyle=c.line; ctx.globalAlpha=.4; ctx.beginPath(); ctx.moveTo(Math.round(x)+.5,padT); ctx.lineTo(Math.round(x)+.5,padT+H); ctx.stroke(); ctx.globalAlpha=1; ctx.fillStyle=c.muted; ctx.fillText(nf(v),Math.min(Math.max(x,padL+8),w-padR-10),padT+H+9); }
+  ctx.save(); ctx.beginPath(); ctx.rect(padL,padT,W,H); ctx.clip();
+  const pts=[],up=[],dn=[]; for(let i=0;i<=120;i++){const v=Math.pow(xmax,i/120),hf=1.96*Math.sqrt(t*(1-t)/v); up.push([lx(v),ly(Math.min(1,t+hf))]); dn.push([lx(v),ly(Math.max(0,t-hf))]);}
+  ctx.beginPath(); up.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1])); for(let i=dn.length-1;i>=0;i--) ctx.lineTo(dn[i][0],dn[i][1]); ctx.closePath(); ctx.fillStyle=c.soft; ctx.fill();
+  ctx.strokeStyle=c.accent2; ctx.lineWidth=2; ctx.setLineDash([6,5]); ctx.beginPath(); ctx.moveTo(padL,ly(t)); ctx.lineTo(w-padR,ly(t)); ctx.stroke(); ctx.setLineDash([]);
+  if(n>0){ let cc=0,next=1,lastX=0,lastY=0; ctx.strokeStyle=c.accent; ctx.lineWidth=1.9; ctx.lineJoin='round'; ctx.beginPath(); let first=true;
+    for(let i=0;i<n;i++){ if(hist[i]===S.focus)cc++; if(i+1>=next||i===n-1){ const x=lx(i+1),y=ly(cc/(i+1)); first?ctx.moveTo(x,y):ctx.lineTo(x,y); first=false; lastX=x;lastY=y; next=Math.max(i+2,Math.ceil((i+1)*1.04)); } }
+    ctx.stroke(); ctx.fillStyle=c.accent; ctx.beginPath(); ctx.arc(lastX,lastY,4,0,7); ctx.fill(); }
+  ctx.restore();
+  $('convhint').textContent=`Beobachtetes Ereignis: »${o.k}« (Wahrscheinlichkeit ${fp(t,2)}). Die x-Achse ist logarithmisch.`;
+}
+
+/* ============ Interaktion ============ */
+function initUI(){
+  const groups={}; EXPS.forEach(e=>(groups[e.grp]=groups[e.grp]||[]).push(e));
+  $('nav').innerHTML=Object.keys(groups).map(g=>`<div class="grp">${g}</div>`+groups[g].map(e=>`<button class="exp" data-id="${e.id}">${e.name}</button>`).join('')).join('');
+  $('nav').addEventListener('click',ev=>{const b=ev.target.closest('.exp'); if(b) loadExp(b.dataset.id);});
+  $('adds').innerHTML=[1,10,100,1000,10000,100000].map(v=>`<button class="btn" data-c="${v}">+ ${nf(v)}</button>`).join('');
+  $('adds').addEventListener('click',ev=>{const b=ev.target.closest('[data-c]'); if(b) go(+b.dataset.c,true);});
+  $('speed').innerHTML=SPEEDS.map((s,i)=>`<option value="${i}" ${i===S.speed?'selected':''}>${s.l}</option>`).join('');
+  $('speed').onchange=e=>{S.speed=+e.target.value;};
+  $('play').onclick=togglePlay; $('reset').onclick=resetSim;
+  $('modeseg').addEventListener('click',ev=>{const b=ev.target.closest('button'); if(!b) return; S.rel=b.dataset.m==='rel'; document.querySelectorAll('#modeseg button').forEach(x=>x.classList.toggle('on',x===b)); drawHist();});
+  const cv=$('hist'),tip=$('tip'),idxAt=ev=>{const r=cv.getBoundingClientRect(),x=ev.clientX-r.left,g=S.hg; if(!g) return -1; const i=Math.floor((x-g.padL)/g.bw); return (i>=0&&i<g.m&&ev.clientY-r.top<g.padT+g.H+4)?i:-1;};
+  cv.addEventListener('mousemove',ev=>{const i=idxAt(ev); if(i!==S.hover){S.hover=i; drawHist();}
+    if(i<0){tip.style.opacity=0;return;} const o=S.outs[i],n=S.n;
+    tip.innerHTML=`<b>${o.k}</b><br>Anzahl: ${nf(S.counts[i])}${n?' · '+fp(S.counts[i]/n,2):''}<br>Theorie: ${fp(o.p,2)}`;
+    const r=cv.getBoundingClientRect(); let x=ev.clientX-r.left+14; if(x>r.width-170) x-=190; tip.style.left=x+'px'; tip.style.top=Math.max(0,ev.clientY-r.top-54)+'px'; tip.style.opacity=1;});
+  cv.addEventListener('mouseleave',()=>{S.hover=-1;tip.style.opacity=0;drawHist();});
+  cv.addEventListener('click',ev=>{const i=idxAt(ev); if(i>=0){S.focus=i; renderStats(); drawHist(); drawConv();}});
+  $('theme').onclick=()=>{const order=['auto','light','dark'],names={auto:'automatisch',light:'hell',dark:'dunkel'}; S.theme=order[(order.indexOf(S.theme)+1)%3];
+    if(S.theme==='auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme',S.theme);
+    $('theme').textContent='Darstellung: '+names[S.theme]; drawHist(); drawConv();};
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change',()=>{drawHist();drawConv();});
+  new ResizeObserver(()=>{ if(S.exp){drawHist();drawConv();} }).observe(document.querySelector('main'));
+  const id=location.hash.slice(1); loadExp(EXPS.some(e=>e.id===id)?id:EXPS[0].id);
+}
+/*UI*/
+if(typeof document!=='undefined'&&document.getElementById('nav')) initUI();
+</script>
+</body>
+</html>
