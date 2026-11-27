@@ -55,6 +55,8 @@ code{word-break:break-all;font-size:12px;background:#eef1f7;padding:2px 4px;bord
 </head>
 <body>
 <div id="app"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
+<script>if(typeof Peer==='undefined'){document.write('<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"><\/script>');}</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <script>
 const $=s=>document.querySelector(s);
@@ -222,12 +224,12 @@ function addPair(){
 }
 function rmPair(i){room().notNext.splice(i,1);save();render()}
 
-/* ---------- Tab 3: Umfrage (WebRTC) ---------- */
+/* ---------- Tab 3: Umfrage (WebRTC über PeerJS) ---------- */
 function baseUrl(){return (S.baseUrl||location.href.split('#')[0]).trim()}
 function tabUmfrage(){
   const R=room();
   let h=`<div class="card"><h3>Umfrage per QR-Code</h3>
-  <p class="hint">Die Schüler scannen den QR-Code, wählen ihren Namen, Reihe und Wunsch-Nachbarn. Die Antworten kommen per WebRTC direkt auf dein Gerät (Verbindungsaufbau über öffentliche MQTT-/BitTorrent-/Nostr-Relays, dafür ist Internet nötig). Diese Seite muss geöffnet bleiben, solange die Umfrage läuft.</p>`;
+  <p class="hint">Die Schüler scannen den QR-Code, wählen ihren Namen, Reihe und Wunsch-Nachbarn. Die Antworten kommen per WebRTC direkt auf dein Gerät (Verbindungsaufbau über den PeerJS-Server, dafür ist Internet nötig). Am zuverlässigsten klappt es, wenn alle im selben WLAN sind. Diese Seite muss geöffnet bleiben, solange die Umfrage läuft.</p>`;
   if(location.protocol==='file:'&&!S.baseUrl)h+=`<div class="warn">Die Datei wird gerade lokal geöffnet (file://). Handys können diese Adresse nicht öffnen. Lege die Datei auf einen Webspace (z. B. GitHub Pages) und trage die Internetadresse hier ein.</div>`;
   h+=`<div class="row"><label>Öffentliche Adresse dieser Seite (optional):</label>
     <input id="baseUrl" style="flex:1;min-width:240px" placeholder="https://…/sitzplan-macher.html" value="${esc(S.baseUrl||'')}" onchange="S.baseUrl=this.value.trim();save();render()"></div><br>`;
@@ -243,44 +245,15 @@ function tabUmfrage(){
   }
   return h+'</div>';
 }
-/* Verbindung: Trystero (WebRTC) – Verbindungsaufbau parallel über MQTT, BitTorrent und Nostr */
-const STRATS=[
-  ['MQTT','https://esm.run/@trystero-p2p/mqtt@0.25.3'],
-  ['BitTorrent','https://esm.run/@trystero-p2p/torrent@0.25.3'],
-  ['Nostr','https://esm.run/trystero@0.25.3']
-];
-const APPID='sitzplan-macher-v1';
-let links=[];
-function joinAll(roomId,role,onMsg,onChange){
-  links=[];
-  STRATS.forEach(async([name,url])=>{
-    const L={name,status:'lädt …',peers:0};links.push(L);
-    try{
-      const mod=await import(url);
-      const rm=mod.joinRoom({appId:APPID},roomId,{
-        // Schüler verbinden sich nur mit dem Lehrer-Gerät, nicht untereinander
-        onPeerHandshake:async(_,send,receive,init)=>{
-          let d;
-          if(init){await send({role});d=(await receive()).data}
-          else{d=(await receive()).data;await send({role})}
-          if(!d||d.role===role)throw new Error('gleiche Rolle');
-        },
-        onJoinError:()=>{}
-      });
-      const act=rm.makeAction('sitzplan');
-      act.onMessage=(data,info)=>{const pid=info&&info.peerId;onMsg(data,mm=>act.send(mm,{target:pid}))};
-      rm.onPeerJoin=pid=>{L.peers++;onChange&&onChange('join',L,pid,mm=>act.send(mm,{target:pid}))};
-      rm.onPeerLeave=()=>{L.peers=Math.max(0,L.peers-1);onChange&&onChange('leave',L)};
-      L.room=rm;L.act=act;L.status='verbunden';
-    }catch(e){L.status='nicht erreichbar'}
-    onChange&&onChange('status',L);
-  });
-}
-function broadcast(m){links.forEach(L=>{try{L.act&&L.act.send(m)}catch(e){}})}
-function stopLinks(){links.forEach(L=>{try{L.room&&L.room.leave()}catch(e){}});links=[]}
-const linkInfo=()=>links.map(L=>L.name+': '+L.status).join(' · ');
+/* Verbindung: PeerJS (WebRTC) – wie im LAN-Chat: feste, selbst erzeugte IDs, automatische Wiederholung */
+const PEER_OPTS={debug:0,config:{iceServers:[
+  {urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},
+  {urls:['turn:openrelay.metered.ca:80','turn:openrelay.metered.ca:443','turns:openrelay.metered.ca:443?transport=tcp'],username:'openrelayproject',credential:'openrelayproject'}
+]}};
+const rnd=n=>{const a='abcdefghijkmnpqrstuvwxyz23456789';let s='';const b=crypto.getRandomValues(new Uint8Array(n));for(const x of b)s+=a[x%a.length];return s};
+let tPeer=null,tConns=[],tStatus='',tTimer=null;
 
-/* ---------- Lehrer: Umfrage ---------- */
+function updStatus(){renderLive()}
 function renderQR(){
   if(!surveyOpen||!surveyCode)return;
   const url=baseUrl()+'#join='+surveyCode;
@@ -290,35 +263,59 @@ function renderQR(){
 function renderLive(){
   const el=$('#live');if(!el)return;
   const sr=S.rooms.find(r=>r.id===surveyRoom);if(!sr)return;
-  el.innerHTML=`${seen.size} Gerät(e) gemeldet · ${sr.students.filter(s=>s.answered).length} von ${sr.students.length} haben geantwortet<br>Verbindungswege: ${linkInfo()}`;
+  el.innerHTML=`Status: ${esc(tStatus)}<br>${tConns.filter(c=>c.open).length} Gerät(e) verbunden · ${sr.students.filter(s=>s.answered).length} von ${sr.students.length} haben geantwortet`;
 }
 function initMsg(){
   const sr=S.rooms.find(r=>r.id===surveyRoom);
   return{type:'init',room:sr?sr.name:'',students:sr?sr.students.map(s=>({id:s.id,name:s.name,done:!!s.answered})):[]};
 }
-function startSurvey(){
-  stopLinks();
-  surveyRoom=room().id;surveyCode=uid()+uid();seen=new Set();surveyOpen=true;
-  joinAll(surveyCode,'teacher',onTeacherMsg,(ev,L,pid,reply)=>{
-    if(ev==='join'&&reply){try{reply(initMsg())}catch(e){}}
-    renderLive();
-  });
-  render();
+function closeTeacherPeer(){
+  clearTimeout(tTimer);
+  tConns.forEach(c=>{try{c.close()}catch(e){}});tConns=[];
+  const p=tPeer;tPeer=null;try{p&&p.destroy()}catch(e){}
 }
-function stopSurvey(){stopLinks();surveyOpen=false;surveyCode=null;render()}
-function onTeacherMsg(m,reply){
-  if(!m)return;
+function startSurvey(){
+  closeTeacherPeer();
+  surveyRoom=room().id;surveyCode='sp-'+rnd(10);seen=new Set();surveyOpen=true;
+  tStatus='Verbinde mit Vermittlungsserver …';
+  render();openTeacherPeer();
+}
+function stopSurvey(){closeTeacherPeer();surveyOpen=false;surveyCode=null;render()}
+function openTeacherPeer(){
+  if(!surveyOpen)return;
+  if(typeof Peer==='undefined'){tStatus='PeerJS konnte nicht geladen werden (Internet oder Blocker?)';updStatus();return}
+  const p=new Peer(surveyCode,PEER_OPTS);tPeer=p;
+  p.on('open',()=>{if(tPeer!==p)return;tStatus='bereit – wartet auf Schüler';updStatus()});
+  p.on('connection',c=>{
+    if(tPeer!==p)return;
+    tConns.push(c);
+    c.on('open',()=>{try{c.send(initMsg())}catch(e){}updStatus()});
+    c.on('data',m=>onAnswer(c,m));
+    c.on('close',()=>{tConns=tConns.filter(x=>x!==c);updStatus()});
+    c.on('error',()=>{});
+  });
+  p.on('disconnected',()=>{if(tPeer===p&&!p.destroyed){try{p.reconnect()}catch(e){}}});
+  p.on('error',e=>{
+    if(tPeer!==p)return;
+    tStatus='Verbindungsproblem ('+((e&&e.type)||'?')+'), neuer Versuch …';
+    if(e&&e.type==='unavailable-id'){surveyCode='sp-'+rnd(10);renderQR()}
+    closeTeacherPeer();updStatus();
+    tTimer=setTimeout(openTeacherPeer,3000+Math.random()*3000);
+  });
+}
+function onAnswer(c,m){
+  if(!m||typeof m!=='object')return;
   if(m.cid)seen.add(m.cid);
-  if(m.type==='hello'){renderLive();return}
+  if(m.type==='hello'){updStatus();return}
   if(m.type!=='answer')return;
   const sr=S.rooms.find(r=>r.id===surveyRoom);if(!sr)return;
   const s=sr.students.find(x=>x.id===m.sid);if(!s)return;
   s.pos=POS.includes(m.pos)?m.pos:'egal';
   s.wish=(Array.isArray(m.wish)?m.wish:[]).filter(w=>w!==s.id&&sr.students.some(x=>x.id===w)).slice(0,3);
   s.answered=true;save();
-  try{reply({type:'ack'})}catch(e){}
-  broadcast(initMsg());
-  renderLive();
+  try{c.send({type:'ack'})}catch(e){}
+  const msg=initMsg();tConns.forEach(x=>{try{x.open&&x.send(msg)}catch(e){}});
+  updStatus();
 }
 
 /* ---------- Sitzplan-Berechnung ---------- */
@@ -456,18 +453,48 @@ function emptyDesk(){const R=room();delete R.plan[selDesk];delete R.pins[selDesk
 function clearPlan(){const R=room();if(!confirm('Sitzplan leeren?'))return;R.plan={};R.pins={};planReport=[];save();render()}
 
 /* ---------- Schüler-Ansicht (per QR-Code) ---------- */
-let SD=null,lastInit='',cid=uid(),st={me:'',pos:'egal',wish:[],status:'Verbinde mit dem Lehrer-Gerät …'};
-function studentMode(code){
-  renderStudent();
-  joinAll(code,'student',m=>{
-    if(!m)return;
-    if(m.type==='init'){const j=JSON.stringify(m);if(j!==lastInit){lastInit=j;const first=!SD;if(first)st.status='';SD=m;const ae=document.activeElement;if(first||!ae||ae.tagName!=='SELECT')renderStudent()}}
-    if(m.type==='ack')setStatus('✅ Gespeichert! Du kannst deine Auswahl noch ändern und erneut absenden.');
-  },(ev)=>{
-    if(ev==='join')broadcast({type:'hello',cid});
-    if(!SD)setStatus('Verbinde mit dem Lehrer-Gerät … ('+linkInfo()+')');
+let SD=null,lastInit='',cid=uid(),sCode='',sPeer=null,sConn=null,sTimer=null,sTries=0,st={me:'',pos:'egal',wish:[],status:'Verbinde mit dem Lehrer-Gerät …'};
+function studentMode(code){sCode=code;renderStudent();connectStudent()}
+function studentRetry(msg){
+  sTries++;clearTimeout(sTimer);
+  let t=msg+' – neuer Versuch …';
+  if(sTries>=3)t+=' Häufige Gründe: Mobilfunk, Schul-/Gäste-WLAN mit Geräteisolation, VPN. Am besten alle im selben WLAN.';
+  setStatus(t);
+  sTimer=setTimeout(connectStudent,2000+Math.random()*2000);
+}
+function onStudentMsg(m){
+  if(!m||typeof m!=='object')return;
+  if(m.type==='init'){
+    const j=JSON.stringify(m);
+    if(j!==lastInit){
+      lastInit=j;const first=!SD;if(first)st.status='';SD=m;
+      const ae=document.activeElement;
+      if(first||!ae||ae.tagName!=='SELECT')renderStudent();
+    }else if(!st.status.startsWith('✅'))setStatus('');
+  }
+  if(m.type==='ack')setStatus('✅ Gespeichert! Du kannst deine Auswahl noch ändern und erneut absenden.');
+}
+function connectStudent(){
+  clearTimeout(sTimer);
+  const old=sPeer;sPeer=null;sConn=null;try{old&&old.destroy()}catch(e){}
+  if(typeof Peer==='undefined'){setStatus('PeerJS konnte nicht geladen werden (Internet oder Blocker?).');return}
+  if(!SD)setStatus('Verbinde mit dem Lehrer-Gerät …');
+  const p=new Peer('st-'+rnd(10),PEER_OPTS);sPeer=p;
+  p.on('open',()=>{
+    if(sPeer!==p)return;
+    const c=p.connect(sCode,{reliable:true});sConn=c;
+    sTimer=setTimeout(()=>{if(sConn===c&&!c.open)studentRetry('Keine Antwort vom Lehrer-Gerät')},12000);
+    c.on('open',()=>{if(sConn!==c)return;clearTimeout(sTimer);sTries=0;try{c.send({type:'hello',cid})}catch(e){}});
+    c.on('data',m=>{if(sConn===c)onStudentMsg(m)});
+    c.on('close',()=>{if(sConn===c)studentRetry('Verbindung getrennt')});
+    c.on('error',()=>{if(sConn===c)studentRetry('Verbindungsfehler')});
   });
-  setTimeout(()=>{if(!SD)setStatus('Noch keine Verbindung. Ist die Umfrage beim Lehrer noch gestartet? ('+linkInfo()+')')},20000);
+  p.on('error',e=>{
+    if(sPeer!==p)return;
+    const t=e&&e.type;
+    studentRetry(t==='peer-unavailable'?'Lehrer-Gerät nicht gefunden (ist die Umfrage gestartet?)':'Verbindungsproblem ('+(t||'?')+')');
+  });
+  p.on('disconnected',()=>{if(sPeer===p&&!p.destroyed){try{p.reconnect()}catch(e){}}});
 }
 function setStatus(t){st.status=t;const e=$('#stmsg');if(e)e.textContent=t;else renderStudent()}
 function renderStudent(){
@@ -493,8 +520,9 @@ function toggleWish(id,cb){
   }else st.wish=st.wish.filter(w=>w!==id);
 }
 function sendAns(){
-  if(!SD||!st.me)return;
-  broadcast({type:'answer',cid,sid:st.me,pos:st.pos,wish:st.wish});
+  if(!sConn||!sConn.open){setStatus('Noch nicht verbunden – bitte einen Moment warten.');return}
+  if(!st.me)return;
+  try{sConn.send({type:'answer',cid,sid:st.me,pos:st.pos,wish:st.wish})}catch(e){setStatus('Senden fehlgeschlagen.');return}
   setStatus('Wird gesendet …');
 }
 
