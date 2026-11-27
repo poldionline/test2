@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sitzplan-Macher</title>
+<style>
+:root{--ac:#2f6fed;--bg:#f2f5fa;--card:#fff;--tx:#1c2433;--mut:#6b7689;--bd:#d9e0ec}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--tx)}
+#app{max-width:1150px;margin:0 auto;padding:12px}
+h1{font-size:22px;margin:0}h2{margin:4px 0 10px}h3{margin:0 0 8px;font-size:17px}
+.top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.sp{flex:1}
+button{font:inherit;padding:7px 12px;border-radius:8px;border:1px solid var(--bd);background:#fff;cursor:pointer}
+button:hover{border-color:var(--ac)}
+button.pri,button.big{background:var(--ac);color:#fff;border-color:var(--ac)}
+button.danger{color:#c62828}
+button:disabled{opacity:.5;cursor:not-allowed}
+button.big{width:100%;padding:12px;font-size:17px;margin-top:14px}
+select,input,textarea{font:inherit;padding:6px 8px;border:1px solid var(--bd);border-radius:8px;background:#fff}
+textarea{width:100%;min-height:90px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.tabs button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:12px}
+.hint{color:var(--mut);font-size:14px;margin:4px 0 10px}
+table{border-collapse:collapse;width:100%}
+td,th{padding:5px 6px;border-bottom:1px solid var(--bd);text-align:left;vertical-align:middle}
+.chip{display:inline-block;background:#e8eefc;border-radius:12px;padding:2px 8px;margin:2px;font-size:13px}
+.chip b{cursor:pointer;margin-left:4px;color:#c62828}
+.board{background:#2c3e50;color:#fff;text-align:center;padding:6px;border-radius:6px;margin-bottom:6px;max-width:968px}
+.grid{position:relative;border:2px solid var(--bd);background-color:#fafcff;touch-action:none;
+background-image:linear-gradient(var(--bd) 1px,transparent 1px),linear-gradient(90deg,var(--bd) 1px,transparent 1px);background-size:44px 44px;max-width:100%;overflow:hidden}
+.desk{position:absolute;width:40px;height:40px;background:#7fa7f5;border:2px solid #2f6fed;border-radius:6px;cursor:grab}
+.pgrid{position:relative;margin:10px 0}
+.pdesk{position:absolute;border:2px solid #9aa7bd;border-radius:8px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:13px;line-height:1.15;cursor:pointer;overflow:hidden;padding:2px;word-break:break-word}
+.z-vorne{background:#dff5e1}.z-mitte{background:#fff6d6}.z-hinten{background:#ffe3cc}
+.pdesk.sel{outline:3px solid var(--ac)}
+.pdesk.pin{border-color:#c62828}
+.legend span{display:inline-block;padding:2px 8px;border-radius:6px;margin-right:6px;font-size:13px}
+.warn{background:#fff3e0;border:1px solid #ffb74d;padding:8px 12px;border-radius:8px;margin:8px 0}
+.bad{color:#c62828}.okc{color:#2e7d32}
+.opts{display:flex;gap:8px;flex-wrap:wrap}
+.opt{border:2px solid var(--bd);border-radius:10px;padding:10px 16px;cursor:pointer}
+.opt.on{border-color:var(--ac);background:#e8eefc}
+.opt input{display:none}
+.wl{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:4px;max-height:260px;overflow:auto;border:1px solid var(--bd);border-radius:8px;padding:6px}
+.chk{display:flex;gap:6px;align-items:center;padding:3px}
+label.l{display:block;margin:12px 0 4px;font-weight:600}
+#qr img{width:260px;max-width:100%;height:auto;image-rendering:pixelated}
+code{word-break:break-all;font-size:12px;background:#eef1f7;padding:2px 4px;border-radius:4px}
+@media print{.noprint{display:none!important}body{background:#fff}.card{border:none;padding:0}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const uid=()=>Math.random().toString(36).slice(2,9);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const KEY='sitzplan_v1';
+const C=44,COLS=22,ROWS=14;
+const POS=['vorne','mitte','hinten','egal'];
+
+/* ---------- Daten ---------- */
+function newRoom(name){return{id:uid(),name,desks:[],students:[],notNext:[],plan:{},pins:{}}}
+function load(){
+  try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&d.rooms&&d.rooms.length)return d}catch(e){}
+  const r=newRoom('Raum 1');return{rooms:[r],cur:r.id,baseUrl:''};
+}
+let S=load();
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+const room=()=>S.rooms.find(r=>r.id===S.cur)||S.rooms[0];
+
+/* ---------- Lehrer-UI ---------- */
+let tab='raum',tool='set',selDesk=null,selStu=null,planReport=[];
+let peer=null,conns=[],surveyOpen=false,peerId=null,peerErr='',surveyRoom=null;
+
+function render(){
+  const R=room();S.cur=R.id;
+  $('#app').innerHTML=`
+  <div class="top noprint"><h1>🪑 Sitzplan-Macher</h1>
+    <div class="row">
+      <select onchange="S.cur=this.value;save();selDesk=selStu=null;planReport=[];render()">
+        ${S.rooms.map(r=>`<option value="${r.id}" ${r.id===S.cur?'selected':''}>${esc(r.name)}</option>`).join('')}
+      </select>
+      <button onclick="addRoom()">+ Raum</button>
+      <button onclick="renameRoom()">Umbenennen</button>
+      <button class="danger" onclick="delRoom()">Raum löschen</button>
+    </div></div>
+  <div class="tabs noprint">
+    ${[['raum','1 Tische'],['schueler','2 Schüler & Regeln'],['umfrage','3 Umfrage (QR)'],['plan','4 Sitzplan']]
+      .map(([k,l])=>`<button class="${tab===k?'on':''}" onclick="tab='${k}';render()">${l}</button>`).join('')}
+  </div>
+  <div id="tabc"></div>`;
+  $('#tabc').innerHTML=({raum:tabRaum,schueler:tabSchueler,umfrage:tabUmfrage,plan:tabPlan})[tab]();
+  if(tab==='raum')gridEvents($('#grid'));
+  if(tab==='umfrage'){renderQR();renderLive()}
+}
+function addRoom(){const n=prompt('Name des neuen Raums:','Raum '+(S.rooms.length+1));if(!n)return;const r=newRoom(n);S.rooms.push(r);S.cur=r.id;save();render()}
+function renameRoom(){const R=room();const n=prompt('Neuer Name:',R.name);if(!n)return;R.name=n;save();render()}
+function delRoom(){
+  if(S.rooms.length<2){alert('Der letzte Raum kann nicht gelöscht werden.');return}
+  const R=room();if(!confirm('Raum „'+R.name+'“ samt Tischen, Schülern und Sitzplan löschen?'))return;
+  S.rooms=S.rooms.filter(r=>r.id!==R.id);S.cur=S.rooms[0].id;save();render();
+}
+
+/* ---------- Tab 1: Tische ---------- */
+function tabRaum(){
+  const R=room();
+  return `<div class="card"><h3>Tischpositionen mit Quadraten</h3>
+  <p class="hint">Klick auf ein leeres Feld = Tisch setzen · Tisch ziehen = verschieben · Modus „Löschen“ = Tisch entfernen. Die Tafel ist oben (= vorne). Jedes Quadrat ist ein Sitzplatz; Quadrate direkt nebeneinander in einer Reihe gelten als „nebeneinander sitzend“.</p>
+  <div class="row">
+    <label><input type="radio" name="tool" ${tool==='set'?'checked':''} onchange="tool='set'"> Setzen/Verschieben</label>
+    <label><input type="radio" name="tool" ${tool==='del'?'checked':''} onchange="tool='del'"> Löschen</label>
+    <span class="sp"></span>
+    Vorlage: <input type="number" id="tr" value="4" min="1" max="${ROWS-1}" style="width:60px"> Reihen ×
+    <input type="number" id="tc" value="6" min="1" max="${COLS}" style="width:60px"> Plätze, Lücke nach je
+    <input type="number" id="tg" value="2" min="0" max="10" style="width:60px"> Plätzen (0 = keine)
+    <button onclick="makeTpl()">Vorlage erzeugen</button>
+    <button class="danger" onclick="clearDesks()">Alle Tische löschen</button>
+  </div>
+  <p><b>${R.desks.length}</b> Tische · ${R.students.length} Schüler</p>
+  <div class="board" style="width:${COLS*C+4}px;max-width:100%">Tafel / Lehrerpult (vorne)</div>
+  <div style="overflow:auto"><div class="grid" id="grid" style="width:${COLS*C}px;height:${ROWS*C}px">
+    ${R.desks.map(d=>`<div class="desk" data-id="${d.id}" style="left:${d.x*C+2}px;top:${d.y*C+2}px"></div>`).join('')}
+  </div></div></div>`;
+}
+function makeTpl(){
+  const R=room();
+  if(R.desks.length&&!confirm('Vorhandene Tische ersetzen?'))return;
+  const rows=+$('#tr').value||1,cols=+$('#tc').value||1,g=+$('#tg').value||0;
+  const width=cols+(g>0?Math.floor((cols-1)/g):0);
+  const x0=Math.max(0,Math.floor((COLS-width)/2));
+  R.desks=[];
+  for(let r=0;r<rows&&r+1<ROWS;r++){
+    let x=x0;
+    for(let c=0;c<cols;c++){
+      if(g>0&&c>0&&c%g===0)x++;
+      if(x<COLS)R.desks.push({id:uid(),x,y:r+1});
+      x++;
+    }
+  }
+  R.plan={};R.pins={};save();render();
+}
+function clearDesks(){const R=room();if(!R.desks.length||!confirm('Alle Tische löschen?'))return;R.desks=[];R.plan={};R.pins={};save();render()}
+function gridEvents(el){
+  const R=room();let drag=null;
+  const cell=e=>{const b=el.getBoundingClientRect();return[Math.floor((e.clientX-b.left)/C),Math.floor((e.clientY-b.top)/C)]};
+  el.onpointerdown=e=>{
+    const dk=e.target.closest('.desk'),[cx,cy]=cell(e);
+    if(tool==='del'){
+      if(dk){R.desks=R.desks.filter(d=>d.id!==dk.dataset.id);delete R.plan[dk.dataset.id];delete R.pins[dk.dataset.id];save();render()}
+      return;
+    }
+    if(dk){drag={el:dk,id:dk.dataset.id};el.setPointerCapture(e.pointerId);dk.style.opacity='.7'}
+    else if(cx>=0&&cy>=0&&cx<COLS&&cy<ROWS){R.desks.push({id:uid(),x:cx,y:cy});save();render()}
+  };
+  el.onpointermove=e=>{
+    if(!drag)return;const[cx,cy]=cell(e);
+    drag.el.style.left=(Math.max(0,Math.min(COLS-1,cx))*C+2)+'px';
+    drag.el.style.top=(Math.max(0,Math.min(ROWS-1,cy))*C+2)+'px';
+  };
+  el.onpointerup=e=>{
+    if(!drag)return;
+    let[cx,cy]=cell(e);cx=Math.max(0,Math.min(COLS-1,cx));cy=Math.max(0,Math.min(ROWS-1,cy));
+    if(!R.desks.some(d=>d.id!==drag.id&&d.x===cx&&d.y===cy)){
+      const d=R.desks.find(d=>d.id===drag.id);d.x=cx;d.y=cy;save();
+    }
+    drag=null;render();
+  };
+}
+
+/* ---------- Tab 2: Schüler & Regeln ---------- */
+const sname=(R,id)=>{const s=R.students.find(s=>s.id===id);return s?s.name:'?'};
+function tabSchueler(){
+  const R=room();
+  const opts=R.students.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
+  return `<div class="card"><h3>Schüler hinzufügen</h3>
+    <textarea id="newNames" placeholder="Ein Name pro Zeile (z. B. aus der Klassenliste einfügen)"></textarea>
+    <div class="row" style="margin-top:6px"><button class="pri" onclick="addNames()">Hinzufügen</button>
+    <button class="danger" onclick="clearStudents()">Alle Schüler entfernen</button></div></div>
+  <div class="card"><h3>Schüler (${R.students.length})</h3>
+    <p class="hint">Reihenwunsch und Nachbarwünsche kommen normalerweise aus der Umfrage, du kannst sie hier aber auch von Hand ändern. „Nicht hinten“ ist eine feste Regel von dir.</p>
+    <div style="overflow:auto"><table>
+    <tr><th>Name</th><th>Reihe</th><th>Sitzt gern neben</th><th>Nicht hinten</th><th>Antwort</th><th></th></tr>
+    ${R.students.map(s=>`<tr>
+      <td><input value="${esc(s.name)}" onchange="setS('${s.id}','name',this.value)"></td>
+      <td><select onchange="setS('${s.id}','pos',this.value)">${POS.map(p=>`<option ${s.pos===p?'selected':''}>${p}</option>`).join('')}</select></td>
+      <td>${(s.wish||[]).map(w=>`<span class="chip">${esc(sname(R,w))}<b onclick="rmWish('${s.id}','${w}')">×</b></span>`).join('')||'<span class="hint">–</span>'}</td>
+      <td><input type="checkbox" ${s.noBack?'checked':''} onchange="setS('${s.id}','noBack',this.checked)"></td>
+      <td>${s.answered?'✓':''}</td>
+      <td><button class="danger" onclick="delStu('${s.id}')">✕</button></td></tr>`).join('')}
+    </table></div></div>
+  <div class="card"><h3>Diese Schüler dürfen nicht nebeneinander sitzen</h3>
+    <div class="row"><select id="nnA">${opts}</select> und <select id="nnB">${opts}</select>
+    <button class="pri" onclick="addPair()">Regel hinzufügen</button></div>
+    <div style="margin-top:8px">${R.notNext.map((p,i)=>`<span class="chip">${esc(sname(R,p[0]))} ✕ ${esc(sname(R,p[1]))}<b onclick="rmPair(${i})">×</b></span>`).join('')||'<span class="hint">Noch keine Regeln.</span>'}</div></div>`;
+}
+function addNames(){
+  const R=room();
+  $('#newNames').value.split('\n').map(x=>x.trim()).filter(Boolean).forEach(n=>R.students.push({id:uid(),name:n,pos:'egal',wish:[],noBack:false,answered:false}));
+  save();render();
+}
+function clearStudents(){const R=room();if(!R.students.length||!confirm('Alle Schüler dieses Raums entfernen?'))return;R.students=[];R.notNext=[];R.plan={};R.pins={};save();render()}
+function setS(id,k,v){const s=room().students.find(s=>s.id===id);if(!s)return;s[k]=v;save();if(k==='name')render()}
+function rmWish(id,w){const s=room().students.find(s=>s.id===id);s.wish=s.wish.filter(x=>x!==w);save();render()}
+function delStu(id){
+  const R=room();R.students=R.students.filter(s=>s.id!==id);
+  R.students.forEach(s=>s.wish=(s.wish||[]).filter(w=>w!==id));
+  R.notNext=R.notNext.filter(p=>!p.includes(id));
+  for(const d in R.plan)if(R.plan[d]===id){delete R.plan[d];delete R.pins[d]}
+  save();render();
+}
+function addPair(){
+  const R=room(),a=$('#nnA').value,b=$('#nnB').value;
+  if(!a||!b||a===b){alert('Bitte zwei verschiedene Schüler wählen.');return}
+  if(!R.notNext.some(p=>(p[0]===a&&p[1]===b)||(p[0]===b&&p[1]===a)))R.notNext.push([a,b]);
+  save();render();
+}
+function rmPair(i){room().notNext.splice(i,1);save();render()}
+
+/* ---------- Tab 3: Umfrage (WebRTC über PeerJS) ---------- */
+function baseUrl(){return (S.baseUrl||location.href.split('#')[0]).trim()}
+function tabUmfrage(){
+  const R=room();
+  let h=`<div class="card"><h3>Umfrage per QR-Code</h3>
+  <p class="hint">Die Schüler scannen den QR-Code, wählen ihren Namen, Reihe und Wunsch-Nachbarn. Die Antworten kommen per WebRTC direkt auf dein Gerät. Diese Seite muss geöffnet bleiben, solange die Umfrage läuft.</p>`;
+  if(location.protocol==='file:'&&!S.baseUrl)h+=`<div class="warn">Die Datei wird gerade lokal geöffnet (file://). Handys können diese Adresse nicht öffnen. Lege die Datei auf einen Webspace (z. B. GitHub Pages) und trage die Internetadresse hier ein.</div>`;
+  h+=`<div class="row"><label>Öffentliche Adresse dieser Seite (optional):</label>
+    <input id="baseUrl" style="flex:1;min-width:240px" placeholder="https://…/sitzplan-macher.html" value="${esc(S.baseUrl||'')}" onchange="S.baseUrl=this.value.trim();save();render()"></div><br>`;
+  if(!surveyOpen){
+    h+=`<button class="pri" onclick="startSurvey()" ${R.students.length?'':'disabled'}>Umfrage für „${esc(R.name)}“ starten</button>
+    ${R.students.length?'':'<p class="hint">Bitte zuerst Schüler eintragen.</p>'}
+    ${peerErr?`<p class="bad">Verbindungsfehler: ${esc(peerErr)}</p>`:''}`;
+  }else{
+    const sr=S.rooms.find(r=>r.id===surveyRoom);
+    h+=`<p>Läuft für: <b>${esc(sr?sr.name:'?')}</b></p><div id="qr"></div><p><code id="joinUrl"></code></p>
+    <p id="live" class="hint"></p>
+    <button class="danger" onclick="stopSurvey()">Umfrage beenden</button>`;
+  }
+  return h+'</div>';
+}
+function renderQR(){
+  if(!surveyOpen||!peerId)return;
+  const url=baseUrl()+'#join='+peerId;
+  try{const q=qrcode(0,'M');q.addData(url);q.make();$('#qr').innerHTML=q.createImgTag(6,8)}catch(e){$('#qr').textContent='QR-Code konnte nicht erzeugt werden.'}
+  $('#joinUrl').textContent=url;
+}
+function renderLive(){
+  const el=$('#live');if(!el)return;
+  const sr=S.rooms.find(r=>r.id===surveyRoom);if(!sr)return;
+  el.textContent=`${conns.filter(c=>c.open).length} Gerät(e) verbunden · ${sr.students.filter(s=>s.answered).length} von ${sr.students.length} haben geantwortet`;
+}
+function initMsg(){
+  const sr=S.rooms.find(r=>r.id===surveyRoom);
+  return{type:'init',room:sr?sr.name:'',students:sr?sr.students.map(s=>({id:s.id,name:s.name,done:!!s.answered})):[]};
+}
+function startSurvey(){
+  if(peer){try{peer.destroy()}catch(e){}}
+  conns=[];peerErr='';surveyRoom=room().id;surveyOpen=false;
+  peer=new Peer();
+  peer.on('open',id=>{peerId=id;surveyOpen=true;render()});
+  peer.on('error',e=>{peerErr=String(e.type||e);surveyOpen=false;render()});
+  peer.on('connection',c=>{
+    conns.push(c);
+    c.on('open',()=>{c.send(initMsg());renderLive()});
+    c.on('data',m=>onAnswer(c,m));
+    c.on('close',()=>{conns=conns.filter(x=>x!==c);renderLive()});
+  });
+}
+function stopSurvey(){if(peer){try{peer.destroy()}catch(e){}}peer=null;conns=[];surveyOpen=false;peerId=null;render()}
+function onAnswer(c,m){
+  if(!m||m.type!=='answer')return;
+  const sr=S.rooms.find(r=>r.id===surveyRoom);if(!sr)return;
+  const s=sr.students.find(x=>x.id===m.sid);if(!s)return;
+  s.pos=POS.includes(m.pos)?m.pos:'egal';
+  s.wish=(Array.isArray(m.wish)?m.wish:[]).filter(w=>w!==s.id&&sr.students.some(x=>x.id===w)).slice(0,3);
+  s.answered=true;save();
+  try{c.send({type:'ack'})}catch(e){}
+  const msg=initMsg();conns.forEach(x=>{try{x.send(msg)}catch(e){}});
+  renderLive();
+}
+
+/* ---------- Sitzplan-Berechnung ---------- */
+function zonesOf(R){
+  const ys=[...new Set(R.desks.map(d=>d.y))].sort((a,b)=>a-b);
+  const z={};
+  R.desks.forEach(d=>{
+    const i=ys.indexOf(d.y),t=ys.length>1?i/(ys.length-1):0;
+    z[d.id]=t<0.34?'vorne':t<0.67?'mitte':'hinten';
+  });
+  return z;
+}
+const adj=(a,b)=>a&&b&&a!==b&&a.y===b.y&&Math.abs(a.x-b.x)===1;
+
+function generate(){
+  const R=room();
+  if(!R.desks.length||!R.students.length){alert('Bitte zuerst Tische und Schüler eintragen.');return}
+  const D=R.desks,n=D.length,zone=D.map(d=>zonesOf(R)[d.id]);
+  const zmap=zonesOf(R);
+  const A=D.map(a=>D.map(b=>adj(a,b)));
+  const sidx={};R.students.forEach(s=>sidx[s.id]=s);
+  const bad=new Set();R.notNext.forEach(([a,b])=>{bad.add(a+'|'+b);bad.add(b+'|'+a)});
+  const fixed=new Array(n).fill(false),base=new Array(n).fill(null);
+  D.forEach((d,i)=>{if(R.pins[d.id]&&R.plan[d.id]&&sidx[R.plan[d.id]]){fixed[i]=true;base[i]=R.plan[d.id]}});
+  const pinnedIds=new Set(base.filter(Boolean));
+  const free=R.students.filter(s=>!pinnedIds.has(s.id)).map(s=>s.id);
+  const freeIdx=[];for(let i=0;i<n;i++)if(!fixed[i])freeIdx.push(i);
+
+  function score(arr){
+    let sc=0;
+    for(let i=0;i<n;i++){
+      const sid=arr[i];if(!sid)continue;const s=sidx[sid],z=zone[i];
+      if(s.noBack&&z==='hinten')sc-=1000;
+      if(s.pos&&s.pos!=='egal'){
+        if(s.pos===z)sc+=3;
+        else if((s.pos==='vorne'&&z==='hinten')||(s.pos==='hinten'&&z==='vorne'))sc-=4;
+        else sc-=1.5;
+      }
+      for(let j=0;j<n;j++){if(A[i][j]&&arr[j]&&bad.has(sid+'|'+arr[j]))sc-=1000}
+      for(const w of s.wish||[]){
+        if(!sidx[w])continue;
+        let ok=false;for(let j=0;j<n;j++)if(A[i][j]&&arr[j]===w){ok=true;break}
+        sc+=ok?4:-1;
+      }
+    }
+    return sc;
+  }
+  let best=null,bestSc=-Infinity;
+  for(let rs=0;rs<4;rs++){
+    const pool=free.slice().sort(()=>Math.random()-.5);
+    let arr=base.slice();
+    freeIdx.forEach((di,k)=>{arr[di]=pool[k]||null});
+    let cur=score(arr),loc=arr.slice(),locSc=cur;
+    const IT=4000;
+    for(let it=0;it<IT&&freeIdx.length>1;it++){
+      const T=3*(1-it/IT)+0.05;
+      const a=freeIdx[Math.floor(Math.random()*freeIdx.length)],b=freeIdx[Math.floor(Math.random()*freeIdx.length)];
+      if(a===b)continue;
+      [arr[a],arr[b]]=[arr[b],arr[a]];
+      const ns=score(arr),d=ns-cur;
+      if(d>=0||Math.random()<Math.exp(d/T)){cur=ns;if(cur>locSc){locSc=cur;loc=arr.slice()}}
+      else[arr[a],arr[b]]=[arr[b],arr[a]];
+    }
+    if(locSc>bestSc){bestSc=locSc;best=loc}
+  }
+  R.plan={};
+  best.forEach((sid,i)=>{if(sid)R.plan[D[i].id]=sid});
+  selDesk=selStu=null;save();
+  planReport=makeReport(R);render();
+}
+function makeReport(R){
+  const out=[],z=zonesOf(R),deskOf={};
+  R.desks.forEach(d=>{const s=R.plan[d.id];if(s)deskOf[s]=d});
+  const seated=new Set(Object.values(R.plan));
+  R.students.forEach(s=>{
+    const d=deskOf[s.id];
+    if(!seated.has(s.id)){out.push(['bad',`${s.name} hat keinen Platz (zu wenige Tische).`]);return}
+    if(s.noBack&&z[d.id]==='hinten')out.push(['bad',`${s.name} darf nicht hinten sitzen, sitzt aber hinten.`]);
+    if(s.pos!=='egal'&&s.pos!==z[d.id])out.push(['warn',`${s.name} wollte ${s.pos}, sitzt ${z[d.id]}.`]);
+    (s.wish||[]).forEach(w=>{if(sname(R,w)!=='?'&&!(deskOf[w]&&adj(d,deskOf[w])))out.push(['info',`${s.name} sitzt nicht neben ${sname(R,w)}.`])});
+  });
+  R.notNext.forEach(([a,b])=>{if(deskOf[a]&&deskOf[b]&&adj(deskOf[a],deskOf[b]))out.push(['bad',`${sname(R,a)} und ${sname(R,b)} sitzen nebeneinander, dürfen aber nicht.`])});
+  return out;
+}
+
+/* ---------- Tab 4: Sitzplan ---------- */
+function tabPlan(){
+  const R=room();
+  if(!R.desks.length)return `<div class="card">Lege zuerst im Tab „Tische“ die Tischpositionen fest.</div>`;
+  const z=zonesOf(R);
+  const minx=Math.min(...R.desks.map(d=>d.x)),maxx=Math.max(...R.desks.map(d=>d.x));
+  const miny=Math.min(...R.desks.map(d=>d.y)),maxy=Math.max(...R.desks.map(d=>d.y));
+  const w=maxx-minx+1,h=maxy-miny+1;
+  const P=Math.max(52,Math.min(110,Math.floor(Math.min(window.innerWidth-50,1100)/w)));
+  const seated=new Set(Object.values(R.plan));
+  const unseated=R.students.filter(s=>!seated.has(s.id));
+  return `<div class="card">
+    <div class="row noprint"><button class="pri" onclick="generate()">🎲 Sitzplan erzeugen</button>
+      <button onclick="clearPlan()">Plan leeren</button><button onclick="window.print()">🖨 Drucken</button>
+      <span class="sp"></span>
+      <span class="legend"><span class="z-vorne">vorne</span><span class="z-mitte">mitte</span><span class="z-hinten">hinten</span></span></div>
+    <p class="hint noprint">Zwei Plätze nacheinander anklicken = Tauschen. Ohne-Platz-Schüler anklicken und dann einen Tisch wählen = Platzieren. Mit „Fixieren“ bleibt ein Schüler beim nächsten Erzeugen an seinem Platz (roter Rand).</p>
+    <h2>${esc(R.name)}</h2>
+    <div class="board" style="width:${w*P}px;max-width:100%">Tafel</div>
+    <div style="overflow:auto"><div class="pgrid" style="width:${w*P}px;height:${h*P}px">
+      ${R.desks.map(d=>{const sid=R.plan[d.id],nm=sid?sname(R,sid):'';
+        return `<div class="pdesk z-${z[d.id]} ${selDesk===d.id?'sel':''} ${R.pins[d.id]?'pin':''}" style="left:${(d.x-minx)*P}px;top:${(d.y-miny)*P}px;width:${P-4}px;height:${P-4}px" onclick="clickDesk('${d.id}')">${esc(nm)}${R.pins[d.id]?' 📌':''}</div>`}).join('')}
+    </div></div>
+    ${selDesk?`<div class="row noprint"><button onclick="togglePin()">📌 Fixieren / Lösen</button><button onclick="emptyDesk()">Platz leeren</button></div>`:''}
+    ${unseated.length?`<div class="noprint" style="margin-top:8px"><b>Ohne Platz:</b> ${unseated.map(s=>`<span class="chip" style="cursor:pointer;${selStu===s.id?'outline:2px solid #2f6fed':''}" onclick="selStu=selStu==='${s.id}'?null:'${s.id}';selDesk=null;render()">${esc(s.name)}</span>`).join('')}</div>`:''}
+    ${planReport.length?`<div class="noprint" style="margin-top:10px"><b>Auswertung:</b><ul>${planReport.map(([k,t])=>`<li class="${k==='bad'?'bad':''}">${k==='bad'?'❌':k==='warn'?'⚠️':'ℹ️'} ${esc(t)}</li>`).join('')}</ul></div>`
+      :(Object.keys(R.plan).length?'<p class="okc noprint">✔ Alle Wünsche und Regeln erfüllt (oder noch nicht ausgewertet).</p>':'')}
+  </div>`;
+}
+function clickDesk(id){
+  const R=room();
+  if(selStu){
+    for(const d in R.plan)if(R.plan[d]===selStu){delete R.plan[d];delete R.pins[d]}
+    R.plan[id]=selStu;delete R.pins[id];selStu=null;
+  }else if(!selDesk){selDesk=id}
+  else if(selDesk===id){selDesk=null}
+  else{
+    const a=selDesk,b=id;
+    const pa=R.plan[a],pb=R.plan[b],ka=R.pins[a],kb=R.pins[b];
+    if(pb)R.plan[a]=pb;else delete R.plan[a];
+    if(pa)R.plan[b]=pa;else delete R.plan[b];
+    if(kb)R.pins[a]=true;else delete R.pins[a];
+    if(ka)R.pins[b]=true;else delete R.pins[b];
+    selDesk=null;
+  }
+  save();planReport=makeReport(R);render();
+}
+function togglePin(){const R=room();if(!R.plan[selDesk]){alert('Dieser Platz ist leer.');return}if(R.pins[selDesk])delete R.pins[selDesk];else R.pins[selDesk]=true;save();render()}
+function emptyDesk(){const R=room();delete R.plan[selDesk];delete R.pins[selDesk];selDesk=null;save();planReport=makeReport(R);render()}
+function clearPlan(){const R=room();if(!confirm('Sitzplan leeren?'))return;R.plan={};R.pins={};planReport=[];save();render()}
+
+/* ---------- Schüler-Ansicht (per QR-Code) ---------- */
+let SD=null,sc=null,st={me:'',pos:'egal',wish:[],status:'Verbinde mit dem Lehrer-Gerät …'};
+function studentMode(id){
+  renderStudent();
+  const p=new Peer();
+  p.on('open',()=>{
+    sc=p.connect(id,{reliable:true});
+    sc.on('data',m=>{
+      if(m.type==='init'){SD=m;st.status='';renderStudent()}
+      if(m.type==='ack'){st.status='✅ Gespeichert! Du kannst deine Auswahl noch ändern und erneut absenden.';renderStudent()}
+    });
+    sc.on('close',()=>{st.status='Verbindung beendet – die Umfrage ist geschlossen.';renderStudent()});
+    sc.on('error',()=>{st.status='Verbindungsfehler.';renderStudent()});
+  });
+  p.on('error',e=>{st.status='Fehler: '+(e.type||e)+' – ist die Umfrage noch gestartet?';renderStudent()});
+}
+function renderStudent(){
+  if(!SD){$('#app').innerHTML=`<div class="card"><h2>🪑 Sitzwunsch</h2><p>${esc(st.status)}</p></div>`;return}
+  const others=SD.students.filter(s=>s.id!==st.me);
+  $('#app').innerHTML=`<div class="card"><h2>🪑 ${esc(SD.room)}</h2>
+  <label class="l">Wer bist du?</label>
+  <select style="width:100%" onchange="st.me=this.value;st.wish=st.wish.filter(w=>w!==st.me);renderStudent()">
+    <option value="">– bitte wählen –</option>
+    ${SD.students.map(s=>`<option value="${s.id}" ${s.id===st.me?'selected':''}>${esc(s.name)}${s.done?' ✓':''}</option>`).join('')}
+  </select>
+  <label class="l">Wo möchtest du sitzen?</label>
+  <div class="opts">${POS.map(p=>`<label class="opt ${st.pos===p?'on':''}"><input type="radio" name="pos" ${st.pos===p?'checked':''} onchange="st.pos='${p}';renderStudent()">${p==='egal'?'Egal':p[0].toUpperCase()+p.slice(1)}</label>`).join('')}</div>
+  <label class="l">Neben wem möchtest du sitzen? (höchstens 3, freiwillig)</label>
+  <div class="wl">${others.map(s=>`<label class="chk"><input type="checkbox" ${st.wish.includes(s.id)?'checked':''} onchange="toggleWish('${s.id}',this)"> ${esc(s.name)}</label>`).join('')}</div>
+  <button class="big" onclick="sendAns()" ${st.me?'':'disabled'}>Absenden</button>
+  <p>${esc(st.status)}</p></div>`;
+}
+function toggleWish(id,cb){
+  if(cb.checked){
+    if(st.wish.length>=3){cb.checked=false;alert('Du kannst höchstens 3 Personen wählen.');return}
+    st.wish.push(id);
+  }else st.wish=st.wish.filter(w=>w!==id);
+}
+function sendAns(){
+  if(!sc||!st.me)return;
+  sc.send({type:'answer',sid:st.me,pos:st.pos,wish:st.wish});
+  st.status='Wird gesendet …';renderStudent();
+}
+
+/* ---------- Start ---------- */
+const m=location.hash.match(/^#join=(.+)$/);
+if(m)studentMode(decodeURIComponent(m[1]));else render();
+</script>
+</body>
+</html>
